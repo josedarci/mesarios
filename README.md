@@ -1,0 +1,119 @@
+# Painel de dados eleitorais
+
+Aplicação web em FastAPI para importar e explorar conjuntos públicos do Tribunal Superior Eleitoral (TSE). Inclui uma API protegida por chave e um dashboard servido pela própria aplicação. Os dados importados ficam em um banco MySQL; o Docker Compose deste projeto **não instala nem inicia um banco de dados**.
+
+## O que o projeto faz
+
+- Importa dados agregados de mesários do TSE e mostra totais e distribuições por localidade e perfil.
+- Importa locais e seções eleitorais, com endereços e coordenadas quando publicados, e permite explorá-los em mapa e tabela.
+- Importa resultados oficiais por seção, cargo e opção de voto. As cargas são manuais e o painel acompanha o progresso.
+- Mostra votos por candidato, votos brancos, nulos e de legenda em um mapa interativo, com filtros por eleição, turno, cargo, UF, município e zona.
+- Exibe detalhes dos votos por seção e, para candidatos de 2026, a foto oficial hospedada no endereço configurado em `CANDIDATE_PHOTOS_BASE_URL`.
+- Registra fontes e execuções de importação para auditoria.
+
+Os dados públicos de mesários são agregados por zona e características: não identificam pessoas nem informam comparecimento individual. A aplicação não acessa o Sistema ELO.
+
+## Requisitos
+
+- **Docker Desktop** com Docker Compose (Windows ou macOS), ou Docker Engine com o plugin Compose (Linux); ou, para desenvolvimento sem Docker, **Python 3.12**.
+- Um servidor **MySQL acessível pela máquina que executa a aplicação**. É necessário informar host, porta, banco, usuário e senha. O usuário MySQL precisa de permissões para criar e alterar tabelas, pois o Alembic aplica as migrações na inicialização.
+- Acesso à internet para consultar os arquivos públicos do TSE, carregar o mapa e acessar as fotos hospedadas.
+
+## Executar com Docker
+
+Na máquina em que o projeto será executado:
+
+```bash
+git clone https://github.com/josedarci/mesarios.git
+cd mesarios
+cp .env.example .env
+```
+
+No Windows PowerShell, o comando para copiar o arquivo é:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Edite `.env` e configure:
+
+- `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER` e `MYSQL_PASSWORD` com os dados do MySQL.
+- `API_KEY` com uma chave aleatória forte, que será solicitada pelo painel.
+- `CANDIDATE_PHOTOS_BASE_URL` com o endereço público das fotos dos candidatos. O valor padrão aponta para `https://josedarci.com/eleicoes2026/fotos-candidatos`.
+
+O arquivo `.env` contém credenciais e não deve ser compartilhado nem enviado ao Git. O servidor MySQL precisa aceitar conexões da máquina que executará o Docker; limite o acesso à porta do banco no firewall e conceda somente as permissões necessárias.
+
+Inicie a aplicação:
+
+```bash
+docker compose up --build -d
+```
+
+Na primeira inicialização, o serviço aplica as migrações ao MySQL e inicia o servidor. Acesse:
+
+- Painel: <http://localhost:8000/>
+- Documentação interativa da API: <http://localhost:8000/docs>
+- Verificação da conexão com o banco: <http://localhost:8000/health>
+
+Para acompanhar os logs, use `docker compose logs -f api`. Para encerrar, use `docker compose down`. Os dados permanecem no MySQL; parar ou atualizar o container não apaga as tabelas.
+
+## Executar localmente sem Docker
+
+Instale Python 3.12 e garanta que o MySQL configurado esteja acessível. Na raiz do projeto:
+
+```bash
+python3.12 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+cp .env.example .env
+```
+
+No Windows PowerShell, crie e ative o ambiente virtual com:
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+Copy-Item .env.example .env
+```
+
+Configure `.env` com os dados do banco e uma `API_KEY`. Aplique as migrações e inicie o servidor:
+
+```bash
+alembic upgrade head
+uvicorn app.main:app --reload
+```
+
+Abra <http://localhost:8000/>. O modo `--reload` é indicado para desenvolvimento; para manter a aplicação rodando para outras pessoas, use Docker Compose ou um servidor de aplicação/serviço configurado para produção. Para executar os testes, use `pytest`.
+
+## Instalar em outra máquina
+
+O método disponível atualmente para instalar em um computador de usuário é executar a aplicação em container Docker; **o projeto ainda não fornece instalador nativo `.exe` ou `.dmg`**. Instale o Docker compatível com o sistema operacional, clone o repositório, configure o `.env` e inicie com `docker compose up --build -d`, conforme as instruções acima.
+
+A instalação precisa de uma conexão com o MySQL configurado. No Compose deste projeto, o banco pode estar em um servidor remoto ou ser instalado e configurado separadamente na própria máquina. A aplicação não cria banco local automaticamente. Se vários usuários precisarem compartilhar os mesmos dados, mantenha a aplicação e o MySQL em um servidor acessível e distribua apenas o endereço do painel; não exponha diretamente a porta do banco à internet.
+
+## Importar e consultar dados
+
+As importações são iniciadas manualmente pelo painel e exigem uma chave `API_KEY` válida:
+
+- Na aba **Visão em mapa**, use **Importar dados oficiais** para importar locais e seções do conjunto `eleitorado-2026`. Esses dados são armazenados em `polling_sections` e `polling_locations`.
+- Na aba **Grade de seções**, use **Importar votos do TSE** para iniciar a importação de resultados. Escolha o ano e, opcionalmente, uma UF; sem UF, a operação é nacional. Uma carga concluída com sucesso fica bloqueada para evitar repetição do mesmo escopo. Cargas em andamento também não podem ser duplicadas.
+- Na aba **Mapa de votos**, escolha ano, turno e cargo para filtrar candidatos ou tipos de voto e consultar os votos por local e seção. A visualização depende de resultados e dados geográficos previamente importados.
+- A grade principal permite filtrar, pesquisar, paginar e consultar os dados agregados de mesários.
+
+As tabelas `elections` e `section_votes` guardam os resultados por eleição, turno, UF, município, zona, seção, cargo e opção de voto. Cada importação mantém referências à fonte e à execução para auditoria.
+
+As rotas que consultam dados exigem o cabeçalho `X-API-Key`. Exemplo:
+
+```bash
+curl 'http://localhost:8000/api/v1/mesarios?uf=SP&zone=12&election_year=2026' \
+  -H 'X-API-Key: sua-chave'
+```
+
+Rotas principais: `GET /api/v1/mesarios/visualizacao`, `GET /api/v1/mesarios`, `GET /api/v1/indicadores/nacional`, `POST /api/v1/mapa/importacoes/tse`, `GET /api/v1/mapa/locais`, `POST /api/v1/resultados/importacoes/tse`, `GET /api/v1/resultados/importacoes/{import_id}` e `GET /api/v1/resultados/mapa`. A lista completa está em `/docs`.
+
+## Segurança e dados
+
+Proteja o arquivo `.env`, use uma chave de API forte e restrinja o acesso ao MySQL por firewall e permissões. A chave de API é uma proteção operacional básica; antes de disponibilizar o painel publicamente, configure também HTTPS, controles de acesso e monitoramento adequados ao ambiente.
+
+O projeto importa arquivos públicos do TSE. Dados de mesários são estatísticos e agregados; a aplicação não disponibiliza nomes de mesários nem permite inferir se uma pessoa específica compareceu.

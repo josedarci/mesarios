@@ -1,0 +1,1837 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f4ef">
+  <title>Painel de dados | Mesários</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #172f36;
+      --muted: #718084;
+      --line: #e4e9e5;
+      --paper: #fff;
+      --canvas: #f5f4ef;
+      --teal: #167968;
+      --teal-dark: #10584e;
+      --teal-soft: #e5f2ed;
+      --gold: #c8984d;
+      --shadow: 0 12px 36px rgba(27, 49, 48, .055);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+
+    .page { width: min(1440px, calc(100% - 56px)); margin: 0 auto; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 23px 0;
+      border-bottom: 1px solid rgba(23, 47, 54, .09);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      display: grid;
+      width: 40px;
+      height: 40px;
+      place-items: center;
+      border-radius: 13px;
+      background: var(--teal-dark);
+      color: white;
+    }
+    .brand-mark svg { width: 22px; height: 22px; }
+    .brand-title { font-size: 15px; font-weight: 750; letter-spacing: -.025em; }
+    .brand-caption { color: var(--muted); font-size: 11px; }
+    .top-actions { display: flex; align-items: center; gap: 12px; }
+    .source-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255,255,255,.72);
+      color: #536568;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .source-dot { width: 7px; height: 7px; border-radius: 50%; background: #54a77b; }
+    .key-button, .primary-button, .secondary-button, .page-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      border: 0;
+      border-radius: 9px;
+      font-weight: 650;
+      transition: background .16s ease, transform .16s ease, border-color .16s ease;
+    }
+    .key-button { padding: 9px 13px; background: transparent; color: var(--teal-dark); }
+    .key-button:hover { background: var(--teal-soft); }
+    .key-button svg { width: 16px; height: 16px; }
+    main { padding: 38px 0 54px; }
+    .intro { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 26px; }
+    .eyebrow {
+      margin-bottom: 9px;
+      color: var(--teal);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .13em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0; font-size: clamp(29px, 3.2vw, 42px); line-height: 1.12; letter-spacing: -.055em; }
+    .intro-copy { max-width: 580px; margin: 11px 0 0; color: var(--muted); font-size: 14px; }
+    .year-label { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .year-label strong { display: block; color: var(--ink); font-size: 24px; letter-spacing: -.04em; text-align: right; }
+
+    .metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }
+    .metric, .panel {
+      border: 1px solid rgba(23, 47, 54, .065);
+      border-radius: 14px;
+      background: var(--paper);
+      box-shadow: var(--shadow);
+    }
+    .metric { min-height: 135px; padding: 19px 21px; }
+    .metric-top { display: flex; align-items: center; justify-content: space-between; }
+    .metric-label { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .metric-icon {
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      border-radius: 10px;
+      background: var(--teal-soft);
+      color: var(--teal);
+    }
+    .metric-icon.gold { background: #f8f0e2; color: #a97931; }
+    .metric-icon.neutral { background: #edf0f0; color: #617175; }
+    .metric-icon svg { width: 17px; height: 17px; }
+    .metric-value { margin-top: 9px; font-size: 29px; font-weight: 750; letter-spacing: -.045em; }
+    .metric-note { margin-top: 1px; color: #8a9698; font-size: 11px; }
+    .overview { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(270px, .8fr); gap: 16px; margin-bottom: 20px; }
+    .panel { padding: 20px; }
+    .panel-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; }
+    .panel-title { margin: 0; font-size: 15px; font-weight: 720; letter-spacing: -.02em; }
+    .panel-subtitle { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .chart-list { display: grid; gap: 15px; margin-top: 21px; }
+    .chart-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(100px, 2fr) auto; align-items: center; gap: 14px; }
+    .chart-name { overflow: hidden; color: #526367; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .bar-track { height: 8px; overflow: hidden; border-radius: 99px; background: #edf1ee; }
+    .bar { height: 100%; min-width: 2px; border-radius: inherit; background: linear-gradient(90deg, #167968, #55aa8c); transition: width .3s ease; }
+    .chart-value { color: var(--ink); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .chart-empty { color: var(--muted); font-size: 12px; }
+    .note-panel { display: flex; flex-direction: column; justify-content: space-between; background: #173c3b; color: #fff; }
+    .note-panel .panel-title { color: #fff; }
+    .note-panel .panel-subtitle { color: #b7ceca; }
+    .note-icon { display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid rgba(255,255,255,.15); border-radius: 11px; color: #d7c08f; }
+    .note-icon svg { width: 18px; height: 18px; }
+    .note-body { margin: 19px 0 0; color: #d4e2de; font-size: 12px; line-height: 1.65; }
+    .note-foot { margin-top: 18px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,.14); color: #b7ceca; font-size: 11px; }
+
+    .data-panel { padding: 0; overflow: hidden; }
+    .data-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 20px 21px; }
+    .data-heading.section-data-heading { align-items: flex-start; }
+    .data-heading .panel-subtitle { margin-top: 5px; }
+    .section-vote-import { display: grid; grid-template-columns: 105px 125px auto; align-items: end; gap: 8px; }
+    .section-vote-import .field label { white-space: nowrap; }
+    .section-vote-import .primary-button { white-space: nowrap; }
+    .section-vote-import-status { padding: 0 21px 14px; color: var(--muted); font-size: 11px; }
+    .section-vote-import-status:empty { display: none; }
+    .filter-toggle { display: none; }
+    .filters {
+      display: grid;
+      grid-template-columns: 1.3fr repeat(4, minmax(105px, .75fr)) auto;
+      gap: 10px;
+      padding: 0 21px 17px;
+    }
+    #sections-filters {
+      grid-template-columns: minmax(72px, .45fr) minmax(155px, 1fr) minmax(88px, .55fr) minmax(300px, 2fr) auto;
+    }
+    #sections-filters .field label { white-space: nowrap; }
+    .field { min-width: 0; }
+    .field.is-loading { position: relative; }
+    .field.is-loading::after {
+      position: absolute;
+      top: 28px;
+      right: 12px;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #dce8e2;
+      border-top-color: var(--teal);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      content: "";
+      pointer-events: none;
+    }
+    .field label { display: block; margin: 0 0 5px 1px; color: #657478; font-size: 10px; font-weight: 700; letter-spacing: .025em; }
+    .field input, .field select {
+      width: 100%;
+      height: 37px;
+      padding: 0 10px;
+      border: 1px solid #dfe6e2;
+      border-radius: 8px;
+      outline: none;
+      background: #fff;
+      color: var(--ink);
+      font-size: 12px;
+    }
+    .field input:focus, .field select:focus { border-color: #75b5a2; box-shadow: 0 0 0 3px rgba(22,121,104,.09); }
+    .filter-actions { display: flex; align-items: flex-end; gap: 7px; }
+    .primary-button { height: 37px; padding: 0 14px; background: var(--teal); color: white; font-size: 12px; }
+    .primary-button:hover { background: var(--teal-dark); }
+    .primary-button:disabled { cursor: wait; opacity: .8; }
+    .button-spinner {
+      width: 13px;
+      height: 13px;
+      flex: 0 0 13px;
+      border: 2px solid rgba(255,255,255,.42);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .secondary-button { height: 37px; padding: 0 11px; border: 1px solid var(--line); background: white; color: #607074; font-size: 12px; }
+    .secondary-button:hover { background: #f7f9f7; border-color: #cbd6d1; }
+    .table-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    thead { background: #fafbf9; }
+    th { padding: 11px 14px; color: #778588; font-size: 10px; font-weight: 750; letter-spacing: .055em; text-transform: uppercase; white-space: nowrap; }
+    th:first-child, td:first-child { padding-left: 21px; }
+    td { padding: 12px 14px; border-top: 1px solid #eff2ef; color: #44565a; font-size: 12px; white-space: nowrap; }
+    tbody tr:hover { background: #fbfcfa; }
+    .cell-main { color: #253b40; font-weight: 650; }
+    .cell-muted { color: #849194; }
+    .tag { display: inline-flex; align-items: center; padding: 4px 8px; border-radius: 999px; background: var(--teal-soft); color: #206957; font-size: 10px; font-weight: 700; }
+    .tag.neutral { background: #f0f2f1; color: #687678; }
+    .detail-button { padding: 5px 8px; border: 1px solid #e3e9e5; border-radius: 7px; background: white; color: var(--teal-dark); font-size: 11px; font-weight: 650; }
+    .detail-button:hover { border-color: #bad6ca; background: #f6faf8; }
+    .detail-row td { padding: 0 21px 17px; white-space: normal; background: #fbfcfa; }
+    .detail-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 20px; padding: 15px; border: 1px solid #e8ede9; border-radius: 10px; background: white; }
+    .detail-item { min-width: 0; }
+    .detail-label { color: #859194; font-size: 10px; font-weight: 650; }
+    .detail-value { overflow-wrap: anywhere; margin-top: 3px; color: #33494d; font-size: 11px; }
+    .detail-raw { grid-column: 1 / -1; padding-top: 10px; border-top: 1px solid #edf0ed; }
+    .detail-raw pre { overflow: auto; max-height: 220px; margin: 6px 0 0; padding: 10px; border-radius: 7px; background: #f5f7f5; color: #516267; font: 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .empty-state, .loading-state { padding: 42px 20px; color: var(--muted); text-align: center; font-size: 12px; }
+    .error-state { margin: 0 21px 15px; padding: 11px 13px; border: 1px solid #f1c8c0; border-radius: 8px; background: #fff6f4; color: #9c3d2e; font-size: 12px; }
+    .table-footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 13px 21px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+    .pagination { display: flex; align-items: center; gap: 7px; }
+    .page-button { width: 31px; height: 30px; border: 1px solid var(--line); background: white; color: #56696d; }
+    .page-button:hover:not(:disabled) { border-color: #a6c9bb; color: var(--teal-dark); }
+    .page-button:disabled { cursor: not-allowed; opacity: .4; }
+    .page-number { min-width: 66px; color: #536468; text-align: center; }
+    .toast { position: fixed; right: 24px; bottom: 24px; z-index: 3; max-width: min(420px, calc(100vw - 32px)); padding: 12px 16px; border-radius: 10px; background: #183c3b; box-shadow: var(--shadow); color: white; font-size: 12px; }
+    .view-switch { display: flex; gap: 5px; width: fit-content; margin: 0 0 18px; padding: 4px; border: 1px solid #e4e9e5; border-radius: 10px; background: #ebece7; }
+    .view-tab { padding: 8px 14px; border: 0; border-radius: 7px; background: transparent; color: #647276; font-size: 12px; font-weight: 700; }
+    .view-tab[aria-selected="true"] { background: white; box-shadow: 0 2px 6px rgba(27,49,48,.08); color: var(--teal-dark); }
+    .map-view { overflow: hidden; border: 1px solid rgba(23,47,54,.065); border-radius: 14px; background: white; box-shadow: var(--shadow); }
+    .map-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; padding: 20px 21px 14px; }
+    .map-filters { display: grid; grid-template-columns: minmax(100px,.65fr) minmax(170px,1.1fr) minmax(100px,.6fr) minmax(200px,1.25fr) auto; align-items: end; gap: 10px; padding: 0 21px 14px; }
+    .map-filters .field { min-width: 0; }
+    .map-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 39px; padding: 0 21px; border-top: 1px solid #edf0ed; color: #718084; font-size: 11px; }
+    .map-summary strong { color: var(--ink); font-size: 12px; }
+    .map-attribution { color: #8a9698; font-size: 10px; white-space: nowrap; }
+    #election-map { z-index: 0; width: 100%; height: min(72vh, 850px); min-height: 610px; background: #eaf0ed; }
+    .map-notice { position: absolute; z-index: 500; top: 14px; left: 50%; width: min(500px, calc(100% - 32px)); padding: 10px 14px; transform: translateX(-50%); border: 1px solid #e1e9e4; border-radius: 9px; background: rgba(255,255,255,.96); box-shadow: 0 5px 20px rgba(23,47,54,.12); color: #526367; font-size: 11px; text-align: center; }
+    .map-dot-popup { min-width: 185px; color: #30464a; font: 12px/1.5 system-ui, sans-serif; }
+    .map-dot-popup strong { display: block; margin-bottom: 4px; font-size: 13px; }
+    .map-dot-popup .popup-muted { color: #718084; }
+    .map-dot-popup .section-list { max-height: 230px; overflow: auto; margin: 9px 0 0; padding: 8px 0 0; border-top: 1px solid #e8ede9; }
+    .map-dot-popup .section-item { padding: 5px 0; border-bottom: 1px solid #f0f2f0; }
+    .map-dot-popup .section-item:last-child { border-bottom: 0; }
+    .map-dot-popup .section-number { color: var(--teal-dark); font-weight: 750; }
+    #vote-map-filters { grid-template-columns: repeat(4, minmax(120px, 1fr)); }
+    #vote-map-filters .filter-actions { grid-column: 1 / -1; justify-content: flex-end; }
+    .candidate-photo-preview { display: flex; align-items: center; gap: 12px; margin: 0 21px 14px; padding: 10px 12px; border: 1px solid #e8ede9; border-radius: 10px; background: #fbfcfa; }
+    .candidate-photo-preview img { width: 52px; height: 64px; border-radius: 7px; background: #edf1ee; object-fit: cover; }
+    .candidate-photo-preview strong { display: block; color: var(--ink); font-size: 13px; }
+    .candidate-photo-preview span { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+    .vote-map-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0 21px 14px; }
+    .vote-map-stat { padding: 12px 14px; border: 1px solid #e8ede9; border-radius: 10px; background: #fbfcfa; }
+    .vote-map-stat span { display: block; color: var(--muted); font-size: 10px; font-weight: 650; }
+    .vote-map-stat strong { display: block; margin-top: 3px; color: var(--ink); font-size: 19px; font-weight: 750; letter-spacing: -.03em; }
+    .vote-map-status { padding: 0 21px 12px; color: var(--muted); font-size: 11px; }
+    .vote-map-status:empty { display: none; }
+    #vote-map { z-index: 0; width: 100%; height: min(72vh, 850px); min-height: 610px; background: #eaf0ed; }
+    .vote-details { margin-top: 16px; }
+    .vote-details .panel-heading { padding: 18px 21px; }
+    .vote-details .table-wrap { max-height: 440px; }
+    .vote-dot-popup { min-width: 190px; color: #30464a; font: 12px/1.5 system-ui, sans-serif; }
+    .vote-dot-popup strong { display: block; margin-bottom: 4px; font-size: 13px; }
+    .vote-dot-popup .popup-muted { color: #718084; }
+    .leaflet-container { font-family: inherit; }
+    .leaflet-control-attribution { font-size: 9px !important; }
+    .modal-backdrop { position: fixed; inset: 0; z-index: 5; display: grid; place-items: center; padding: 20px; background: rgba(20, 39, 39, .42); }
+    .modal { width: min(410px, 100%); padding: 22px; border-radius: 14px; background: white; box-shadow: 0 22px 70px rgba(0,0,0,.2); }
+    .modal h2 { margin: 0; font-size: 19px; letter-spacing: -.03em; }
+    .modal p { margin: 8px 0 16px; color: var(--muted); font-size: 12px; }
+    .modal input { width: 100%; height: 42px; padding: 0 11px; border: 1px solid var(--line); border-radius: 8px; outline: none; }
+    .modal input:focus { border-color: #75b5a2; box-shadow: 0 0 0 3px rgba(22,121,104,.09); }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 15px; }
+    [hidden] { display: none !important; }
+    @media (max-width: 940px) {
+      .filters { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+      #sections-filters { grid-template-columns: minmax(72px, .45fr) minmax(145px, 1fr) minmax(85px, .55fr) minmax(250px, 1.8fr); }
+      .filter-actions { grid-column: 1 / -1; }
+      .overview { grid-template-columns: minmax(0, 1.4fr) minmax(250px, .8fr); }
+      .detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .map-filters { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+      #election-map { height: 68vh; min-height: 540px; }
+      #vote-map-filters { grid-template-columns: repeat(3, minmax(120px, 1fr)); }
+      .candidate-photo-preview { margin-right: 15px; margin-left: 15px; }
+      #vote-map { height: 68vh; min-height: 540px; }
+    }
+    @media (max-width: 680px) {
+      .page { width: min(100% - 28px, 520px); }
+      .topbar { padding: 15px 0; }
+      .source-pill { display: none; }
+      .key-button { padding: 8px; font-size: 0; }
+      .key-button svg { width: 18px; height: 18px; }
+      main { padding-top: 28px; }
+      .intro { align-items: flex-start; }
+      .intro-copy { font-size: 13px; }
+      .year-label { padding-top: 6px; font-size: 10px; }
+      .year-label strong { font-size: 20px; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .metric { min-height: 116px; padding: 15px; }
+      .metric:last-child { grid-column: 1 / -1; min-height: 99px; }
+      .metric-value { font-size: 25px; }
+      .overview { grid-template-columns: 1fr; gap: 10px; }
+      .panel { padding: 16px; }
+      .note-panel { min-height: 170px; }
+      .data-heading { padding: 17px 15px; }
+      .data-heading.section-data-heading { flex-direction: column; align-items: stretch; }
+      .section-vote-import { grid-template-columns: 1fr 1fr; width: 100%; }
+      .section-vote-import .primary-button { grid-column: 1 / -1; }
+      .section-vote-import-status { padding: 0 15px 14px; }
+      .filters { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; padding: 0 15px 15px; }
+      .field:first-child { grid-column: 1 / -1; }
+      #sections-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      #sections-filters .field:first-child { grid-column: auto; }
+      #sections-filters .field:nth-child(4) { grid-column: 1 / -1; }
+      #sections-filters .field:nth-child(4) label { font-size: 9px; }
+      .filter-actions { grid-column: 1 / -1; }
+      .filter-actions button { flex: 1; }
+      .view-switch { width: 100%; }
+      .view-tab { flex: 1; }
+      .view-tab { padding: 8px 7px; font-size: 10px; }
+      .map-heading { padding: 16px 15px 11px; }
+      .map-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 15px 12px; }
+      .map-filters .field:first-child { grid-column: span 1; }
+      .map-filters .field:nth-child(2) { grid-column: 2; }
+      .map-filters .map-search { grid-column: 1 / -1; }
+      .map-filters .filter-actions { grid-column: 1 / -1; }
+      .map-filters .filter-actions button { flex: 1; }
+      .map-summary { padding: 8px 15px; align-items: flex-start; }
+      .map-attribution { white-space: normal; text-align: right; }
+      #election-map { height: 70vh; min-height: 500px; }
+      #vote-map-filters { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 15px 12px; }
+      #vote-map-filters .filter-actions { grid-column: 1 / -1; }
+      #vote-map-filters .filter-actions button { flex: 1; }
+      .vote-map-stats { gap: 7px; padding: 0 15px 12px; }
+      .vote-map-stat { padding: 10px 8px; }
+      .vote-map-stat strong { font-size: 15px; }
+      .vote-map-stat span { font-size: 9px; }
+      .vote-map-status { padding: 0 15px 10px; }
+      #vote-map { height: 70vh; min-height: 500px; }
+      .vote-details .panel-heading { padding: 15px; }
+      th:first-child, td:first-child { padding-left: 15px; }
+      .detail-row td { padding: 0 12px 13px; }
+      .detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 13px; padding: 12px; }
+      .table-footer { align-items: flex-start; padding: 12px 15px; }
+      .table-footer > span { max-width: 55%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V9l8-5 8 5v10"/><path d="M8 19v-6h8v6M3 19h18"/></svg>
+        </div>
+        <div><div class="brand-title">Mesários</div><div class="brand-caption">Painel de dados eleitorais</div></div>
+      </div>
+      <div class="top-actions">
+        <span class="source-pill"><span class="source-dot"></span>Fonte oficial · TSE</span>
+        <button class="key-button" id="key-open" type="button" aria-label="Configurar chave de acesso">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4m-5 4v2"/></svg>
+          Chave de acesso
+        </button>
+      </div>
+    </header>
+
+    <main>
+      <section class="intro" id="dashboard-intro">
+        <div>
+          <div class="eyebrow">Visão geral</div>
+          <h1>Dados, com clareza.</h1>
+          <p class="intro-copy">Explore os registros agregados de mesários por localidade, perfil e comparecimento. Use os filtros para encontrar exatamente o que procura.</p>
+        </div>
+        <div class="year-label">Ano da eleição<strong>2026</strong></div>
+      </section>
+
+      <nav class="view-switch" role="tablist" aria-label="Modo de visualização">
+        <button class="view-tab" id="grid-tab" type="button" role="tab" aria-selected="true" aria-controls="grid-view">Visão em grade</button>
+        <button class="view-tab" id="sections-tab" type="button" role="tab" aria-selected="false" aria-controls="sections-view">Grade de seções</button>
+        <button class="view-tab" id="map-tab" type="button" role="tab" aria-selected="false" aria-controls="map-view">Visão em mapa</button>
+        <button class="view-tab" id="vote-map-tab" type="button" role="tab" aria-selected="false" aria-controls="vote-map-view">Mapa de votos</button>
+      </nav>
+
+      <div id="grid-view" role="tabpanel" aria-labelledby="grid-tab">
+      <section class="metrics" aria-label="Indicadores">
+        <article class="metric">
+          <div class="metric-top"><span class="metric-label">Linhas encontradas</span><span class="metric-icon neutral"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></span></div>
+          <div class="metric-value" id="metric-rows">—</div><div class="metric-note">Registros agregados conforme os filtros</div>
+        </article>
+        <article class="metric">
+          <div class="metric-top"><span class="metric-label">Convocados na seleção</span><span class="metric-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span></div>
+          <div class="metric-value" id="metric-called">—</div><div class="metric-note">Soma de QT_CONVOCADOS nos resultados</div>
+        </article>
+        <article class="metric">
+          <div class="metric-top"><span class="metric-label">Registros nesta página</span><span class="metric-icon gold"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg></span></div>
+          <div class="metric-value" id="metric-page">—</div><div class="metric-note">Até 100 registros por página</div>
+        </article>
+      </section>
+
+      <section class="overview">
+        <article class="panel">
+          <div class="panel-heading">
+            <div><h2 class="panel-title">Convocados por comparecimento</h2><p class="panel-subtitle">Distribuição na seleção atual</p></div>
+          </div>
+          <div class="chart-list" id="attendance-chart"><div class="chart-empty">Informe sua chave de acesso para carregar os dados.</div></div>
+        </article>
+        <aside class="panel note-panel">
+          <div class="panel-heading">
+            <div><h2 class="panel-title">Sobre estes dados</h2><p class="panel-subtitle">Transparência sobre a fonte</p></div>
+            <span class="note-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4m0-4h.01"/></svg></span>
+          </div>
+          <p class="note-body">Os dados são agregados e publicados pelo TSE. Cada linha representa contagens e características agrupadas — não identifica pessoas nem seções eleitorais.</p>
+          <div class="note-foot">A soma de convocados é uma contagem agregada, não uma lista de indivíduos.</div>
+        </aside>
+      </section>
+
+      <section class="panel data-panel">
+        <div class="data-heading">
+          <div><h2 class="panel-title">Explorar registros</h2><p class="panel-subtitle" id="results-caption">Configure a chave de acesso para consultar os dados.</p></div>
+        </div>
+        <form class="filters" id="filters">
+          <div class="field"><label for="search">BUSCA GERAL</label><input id="search" name="search" placeholder="Município, perfil ou característica"></div>
+          <div class="field"><label for="uf">UF</label><select id="uf" name="uf" disabled><option value="">Carregando UFs…</option></select></div>
+          <div class="field"><label for="municipality">MUNICÍPIO</label><select id="municipality" name="municipality" disabled><option value="">Selecione uma UF</option></select></div>
+          <div class="field"><label for="year">ANO</label><input id="year" name="election_year" type="number" min="2000" placeholder="2026"></div>
+          <div class="field"><label for="zone">ZONA</label><input id="zone" name="zone" type="number" min="1" placeholder="Todas"></div>
+          <div class="filter-actions">
+            <button class="primary-button" type="submit">Filtrar</button>
+            <button class="secondary-button" id="clear-filters" type="button">Limpar</button>
+          </div>
+          <div class="field"><label for="turn">TURNO</label><select id="turn" name="turn"><option value="">Todos</option><option value="1">1º turno</option><option value="2">2º turno</option></select></div>
+          <div class="field"><label for="type">TIPO DE MESÁRIO</label><input id="type" name="mesario_type" placeholder="Todos"></div>
+          <div class="field"><label for="attendance">COMPARECIMENTO</label><input id="attendance" name="attendance_status" placeholder="Todas as categorias"></div>
+          <div class="field"><label for="municipality-code">CÓDIGO DO MUNICÍPIO</label><input id="municipality-code" name="municipality_code" placeholder="Código"></div>
+          <div class="field"><label for="gender">GÊNERO</label><select id="gender" name="gender" disabled><option value="">Carregando valores…</option></select></div>
+          <div class="field"><label for="marital-status">ESTADO CIVIL</label><select id="marital-status" name="marital_status" disabled><option value="">Carregando valores…</option></select></div>
+          <div class="field"><label for="age-range">IDADE</label><select id="age-range" name="age_range" disabled><option value="">Carregando valores…</option></select></div>
+          <div class="field"><label for="education-level">ESCOLARIDADE</label><select id="education-level" name="education_level" disabled><option value="">Carregando valores…</option></select></div>
+        </form>
+
+        <div id="error-message" class="error-state" role="alert" hidden></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Localidade</th><th>UF</th><th>Zona</th><th>Ano / turno</th><th>Perfil</th><th>Comparecimento</th><th>Convocados</th><th></th></tr></thead>
+            <tbody id="results"><tr><td class="loading-state" colspan="8">Aguardando chave de acesso.</td></tr></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span id="page-caption">—</span>
+          <div class="pagination">
+            <button class="page-button" id="previous" type="button" aria-label="Página anterior" disabled>‹</button>
+            <span class="page-number" id="page-number">—</span>
+            <button class="page-button" id="next" type="button" aria-label="Próxima página" disabled>›</button>
+          </div>
+        </div>
+      </section>
+      </div>
+
+      <section class="panel data-panel" id="sections-view" role="tabpanel" aria-labelledby="sections-tab" hidden>
+        <div class="data-heading section-data-heading">
+          <div>
+            <h2 class="panel-title">Seções eleitorais</h2>
+            <p class="panel-subtitle" id="sections-caption">Endereços publicados pelo TSE, sem associação individual a mesários.</p>
+          </div>
+          <div class="section-vote-import" aria-label="Importar resultados de votação">
+            <div class="field">
+              <label for="results-election-year">ANO</label>
+              <input id="results-election-year" type="number" min="1994" max="2100" value="2026">
+            </div>
+            <div class="field">
+              <label for="results-uf">UF</label>
+              <select id="results-uf">
+                <option value="">Brasil todo</option>
+                <option value="AC">AC</option><option value="AL">AL</option><option value="AM">AM</option>
+                <option value="AP">AP</option><option value="BA">BA</option><option value="CE">CE</option>
+                <option value="DF">DF</option><option value="ES">ES</option><option value="GO">GO</option>
+                <option value="MA">MA</option><option value="MG">MG</option><option value="MS">MS</option>
+                <option value="MT">MT</option><option value="PA">PA</option><option value="PB">PB</option>
+                <option value="PE">PE</option><option value="PI">PI</option><option value="PR">PR</option>
+                <option value="RJ">RJ</option><option value="RN">RN</option><option value="RO">RO</option>
+                <option value="RR">RR</option><option value="RS">RS</option><option value="SC">SC</option>
+                <option value="SE">SE</option><option value="SP">SP</option><option value="TO">TO</option>
+              </select>
+            </div>
+            <button class="primary-button" id="results-import" type="button">Importar votos do TSE</button>
+          </div>
+        </div>
+        <div class="section-vote-import-status" id="results-import-status" role="status" aria-live="polite">
+          A importação dos votos não é automática. Escolha um ano e, opcionalmente, uma UF para começar.
+        </div>
+        <form class="filters" id="sections-filters">
+          <div class="field"><label for="sections-uf">UF</label><select id="sections-uf" name="uf" disabled><option value="">Carregando UFs…</option></select></div>
+          <div class="field"><label for="sections-municipality">MUNICÍPIO</label><select id="sections-municipality" name="municipality" disabled><option value="">Selecione uma UF</option></select></div>
+          <div class="field"><label for="sections-zone">ZONA</label><input id="sections-zone" name="zone" type="number" min="1" placeholder="Todas"></div>
+          <div class="field"><label for="sections-search">BUSCAR SEÇÃO, LOCAL OU ENDEREÇO</label><input id="sections-search" name="search" placeholder="Ex.: seção, nome do local, rua, bairro ou CEP"></div>
+          <div class="filter-actions"><button class="primary-button" type="submit">Filtrar seções</button><button class="secondary-button" id="sections-clear" type="button">Limpar</button></div>
+        </form>
+        <div id="sections-error" class="error-state" role="alert" hidden></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Seção</th><th>UF</th><th>Município</th><th>Zona</th><th>Local de votação</th><th>Endereço</th><th>Bairro</th><th>CEP</th><th>Situação</th></tr></thead>
+            <tbody id="sections-results"><tr><td class="loading-state" colspan="9">Aguardando chave de acesso.</td></tr></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span id="sections-page-caption">—</span>
+          <div class="pagination">
+            <button class="page-button" id="sections-previous" type="button" aria-label="Página anterior" disabled>‹</button>
+            <span class="page-number" id="sections-page-number">—</span>
+            <button class="page-button" id="sections-next" type="button" aria-label="Próxima página" disabled>›</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="map-view" id="map-view" role="tabpanel" aria-labelledby="map-tab" hidden>
+        <div class="map-heading">
+          <div><h2 class="panel-title">Locais de votação no Brasil</h2><p class="panel-subtitle">Explore os locais e suas seções eleitorais com endereços publicados pelo TSE.</p></div>
+          <button class="secondary-button" id="map-import" type="button">Importar dados oficiais</button>
+        </div>
+        <form class="map-filters" id="map-filters">
+          <div class="field"><label for="map-uf">UF</label><input id="map-uf" name="uf" maxlength="2" placeholder="Todas"></div>
+          <div class="field"><label for="map-municipality">MUNICÍPIO</label><input id="map-municipality" name="municipality" placeholder="Todos os municípios"></div>
+          <div class="field"><label for="map-zone">ZONA</label><input id="map-zone" name="zone" type="number" min="1" placeholder="Todas"></div>
+          <div class="field map-search"><label for="map-search">BUSCAR LOCAL OU ENDEREÇO</label><input id="map-search" name="search" placeholder="Nome do local, rua, bairro ou CEP"></div>
+          <div class="filter-actions"><button class="primary-button" type="submit">Aplicar filtros</button><button class="secondary-button" id="map-clear" type="button">Limpar</button></div>
+        </form>
+        <div class="map-summary"><strong id="map-summary">Aguardando acesso aos dados.</strong><span class="map-attribution">TSE · Mapa © OpenStreetMap</span></div>
+        <div id="election-map" aria-label="Mapa interativo dos locais de votação do Brasil"></div>
+      </section>
+
+      <section class="map-view" id="vote-map-view" role="tabpanel" aria-labelledby="vote-map-tab" hidden>
+        <div class="map-heading">
+          <div>
+            <h2 class="panel-title">Votação por candidato e seção</h2>
+            <p class="panel-subtitle">Explore os votos oficiais no mapa e abra um local para consultar a votação de cada seção e zona.</p>
+          </div>
+        </div>
+        <form class="map-filters" id="vote-map-filters">
+          <div class="field"><label for="vote-map-year">ANO DA ELEIÇÃO</label><select id="vote-map-year" name="election_year" required><option value="">Carregando anos…</option></select></div>
+          <div class="field"><label for="vote-map-turn">TURNO</label><select id="vote-map-turn" name="turn" required disabled><option value="">Selecione</option></select></div>
+          <div class="field"><label for="vote-map-office">CARGO ELETIVO</label><select id="vote-map-office" name="office_code" required disabled><option value="">Selecione ano e turno</option></select></div>
+          <div class="field"><label for="vote-map-type">TIPO DE VOTO</label>
+            <select id="vote-map-type" name="vote_type">
+              <option value="CANDIDATO">Candidato</option>
+              <option value="BRANCO">Brancos</option>
+              <option value="NULO">Nulos</option>
+              <option value="LEGENDA">Legenda</option>
+            </select>
+          </div>
+          <div class="field"><label for="vote-map-candidate">CANDIDATO</label><select id="vote-map-candidate" name="vote_code" disabled><option value="">Todos os candidatos</option></select></div>
+          <div class="field"><label for="vote-map-uf">UF</label><select id="vote-map-uf" name="uf" disabled><option value="">Todas as UFs</option></select></div>
+          <div class="field"><label for="vote-map-municipality">MUNICÍPIO</label><select id="vote-map-municipality" name="municipality" disabled><option value="">Todos os municípios</option></select></div>
+          <div class="field"><label for="vote-map-zone">ZONA</label><input id="vote-map-zone" name="zone" type="number" min="1" placeholder="Todas"></div>
+          <div class="filter-actions">
+            <button class="primary-button" type="submit">Aplicar filtros</button>
+            <button class="secondary-button" id="vote-map-clear" type="button">Limpar</button>
+          </div>
+        </form>
+        <div class="candidate-photo-preview" id="vote-map-candidate-preview" hidden aria-live="polite">
+          <img id="vote-map-candidate-photo" alt="" loading="lazy">
+          <div><strong id="vote-map-candidate-name"></strong><span>Foto oficial · TSE</span></div>
+        </div>
+        <div class="vote-map-stats" aria-label="Totais da seleção">
+          <div class="vote-map-stat"><span>VOTOS NA ÁREA VISÍVEL</span><strong id="vote-map-total-votes">—</strong></div>
+          <div class="vote-map-stat"><span>SEÇÕES NA ÁREA VISÍVEL</span><strong id="vote-map-total-sections">—</strong></div>
+          <div class="vote-map-stat"><span>LOCAIS NA ÁREA VISÍVEL</span><strong id="vote-map-total-locations">—</strong></div>
+        </div>
+        <div class="vote-map-status" id="vote-map-status" role="status" aria-live="polite">Informe a chave de acesso para consultar os resultados.</div>
+        <div id="vote-map" aria-label="Mapa dos votos por local de votação no Brasil"></div>
+        <section class="panel data-panel vote-details" id="vote-map-details" hidden>
+          <div class="panel-heading">
+            <div><h3 class="panel-title" id="vote-map-details-title">Votação por seção</h3><p class="panel-subtitle" id="vote-map-details-caption"></p></div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Seção</th><th>Zona</th><th>Candidato / opção</th><th>Partido</th><th>Votos</th></tr></thead>
+              <tbody id="vote-map-details-results"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="key-modal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <h2 id="modal-title">Acesso aos dados</h2>
+      <p>Informe a chave de API configurada no servidor. Ela fica salva somente nesta sessão do navegador.</p>
+      <form id="key-form">
+        <input id="api-key" type="password" autocomplete="current-password" placeholder="X-API-Key" required>
+        <div class="modal-actions"><button class="secondary-button" id="key-cancel" type="button">Cancelar</button><button class="primary-button" type="submit">Conectar</button></div>
+      </form>
+    </section>
+  </div>
+  <div class="toast" id="toast" role="status" hidden></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const pageSize = 100;
+    let offset = 0;
+    let totalRows = 0;
+    let sectionsOffset = 0;
+    let totalSectionsRows = 0;
+    let activeView = "grid";
+    let sectionsRequestSequence = 0;
+    let sectionsOptionsRequestSequence = 0;
+    let resultsImportPolling = false;
+    let toastTimer;
+    let electionMap = null;
+    let mapLayer = null;
+    let mapRequestTimer;
+    let mapRequestSequence = 0;
+    let mapRequestController = null;
+    let mapImportPolling = false;
+    let voteMap = null;
+    let voteMapLayer = null;
+    let voteMapRequestTimer;
+    let voteMapRequestSequence = 0;
+    let voteMapRequestController = null;
+    let voteMapOptionsRequestSequence = 0;
+    let voteCandidatesRequestSequence = 0;
+    let voteMapCandidates = [];
+    let voteDetailsRequestSequence = 0;
+    const keyModal = document.getElementById("key-modal");
+    const keyInput = document.getElementById("api-key");
+    const results = document.getElementById("results");
+    const errorMessage = document.getElementById("error-message");
+    const numberFormat = new Intl.NumberFormat("pt-BR");
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+      })[character]);
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.hidden = false;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { toast.hidden = true; }, 3600);
+    }
+
+    async function loadFilterOptions(apiKey) {
+      const filterDefinitions = [
+        ["gender", "Todos os gêneros"],
+        ["marital_status", "Todos os estados civis"],
+        ["age_range", "Todas as faixas etárias"],
+        ["education_level", "Todos os níveis"]
+      ];
+      const optionFields = [
+        ...filterDefinitions.map(([name]) => document.querySelector(`#filters select[name="${name}"]`)),
+        document.getElementById("uf"),
+        document.getElementById("municipality")
+      ];
+      for (const select of optionFields) {
+        select.closest(".field").classList.add("is-loading");
+      }
+      try {
+        const selectedUf = document.getElementById("uf").value;
+        const params = new URLSearchParams();
+        if (selectedUf) params.set("uf", selectedUf);
+        const response = await fetch(`/api/v1/mesarios/opcoes?${params}`, {
+          headers: { "X-API-Key": apiKey }
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          if (response.status === 401) {
+            sessionStorage.removeItem("mesarios-api-key");
+            showKeyDialog();
+          }
+          throw new Error(detail.detail || `Falha ao carregar as opções dos filtros (HTTP ${response.status}).`);
+        }
+        const options = await response.json();
+        for (const [name, placeholder] of filterDefinitions) {
+          const select = document.querySelector(`#filters select[name="${name}"]`);
+          const currentValue = select.value;
+          select.replaceChildren(new Option(placeholder, ""));
+          for (const value of options[name] || []) {
+            select.add(new Option(value, value));
+          }
+          select.disabled = !(options[name] || []).length;
+          if ((options[name] || []).includes(currentValue)) select.value = currentValue;
+          if (!options[name]?.length) {
+            select.options[0].textContent = "Sem valores disponíveis";
+          }
+        }
+        const ufSelect = document.getElementById("uf");
+        const municipalitySelect = document.getElementById("municipality");
+        const previousUf = ufSelect.value;
+        const previousMunicipality = municipalitySelect.value;
+        ufSelect.replaceChildren(new Option("Todas as UFs", ""));
+        for (const value of options.ufs || []) {
+          ufSelect.add(new Option(value, value));
+        }
+        ufSelect.disabled = !(options.ufs || []).length;
+        if ((options.ufs || []).includes(previousUf)) ufSelect.value = previousUf;
+
+        municipalitySelect.replaceChildren(
+          new Option(ufSelect.value ? "Todos os municípios" : "Selecione uma UF", "")
+        );
+        for (const value of options.municipalities || []) {
+          municipalitySelect.add(new Option(value, value));
+        }
+        municipalitySelect.disabled = !ufSelect.value || !(options.municipalities || []).length;
+        if ((options.municipalities || []).includes(previousMunicipality)) {
+          municipalitySelect.value = previousMunicipality;
+        }
+        if (ufSelect.value && !(options.municipalities || []).length) {
+          municipalitySelect.options[0].textContent = "Sem municípios disponíveis";
+        }
+      } catch (error) {
+        for (const [name, placeholder] of filterDefinitions) {
+          const select = document.querySelector(`#filters select[name="${name}"]`);
+          select.replaceChildren(new Option(placeholder, ""));
+          select.disabled = true;
+        }
+        const ufSelect = document.getElementById("uf");
+        ufSelect.replaceChildren(new Option("Não foi possível carregar UFs", ""));
+        ufSelect.disabled = true;
+        const municipalitySelect = document.getElementById("municipality");
+        municipalitySelect.replaceChildren(new Option("Selecione uma UF", ""));
+        municipalitySelect.disabled = true;
+        errorMessage.textContent = error.message || "Não foi possível carregar as opções dos filtros.";
+        errorMessage.hidden = false;
+      } finally {
+        for (const select of optionFields) {
+          select.closest(".field").classList.remove("is-loading");
+        }
+      }
+    }
+
+    function setButtonLoading(button, loading, message = "Carregando…") {
+      if (loading) {
+        if (!button.dataset.originalContent) {
+          button.dataset.originalContent = button.innerHTML;
+        }
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+        button.innerHTML = `<span class="button-spinner" aria-hidden="true"></span>${escapeHtml(message)}`;
+        return;
+      }
+      button.disabled = false;
+      button.removeAttribute("aria-busy");
+      if (button.dataset.originalContent) {
+        button.innerHTML = button.dataset.originalContent;
+        delete button.dataset.originalContent;
+      }
+    }
+
+    function loadActiveView() {
+      if (activeView === "map") {
+        loadMap();
+      } else if (activeView === "sections") {
+        loadSectionGrid();
+      } else if (activeView === "vote-map") {
+        loadVoteMapOptions();
+      } else {
+        loadData();
+      }
+    }
+
+    function setActiveView(mapActive) {
+      const view = typeof mapActive === "string" ? mapActive : (mapActive ? "map" : "grid");
+      activeView = view;
+      document.getElementById("grid-tab").setAttribute("aria-selected", String(view === "grid"));
+      document.getElementById("sections-tab").setAttribute("aria-selected", String(view === "sections"));
+      document.getElementById("map-tab").setAttribute("aria-selected", String(view === "map"));
+      document.getElementById("vote-map-tab").setAttribute("aria-selected", String(view === "vote-map"));
+      document.getElementById("grid-view").hidden = view !== "grid";
+      document.getElementById("sections-view").hidden = view !== "sections";
+      document.getElementById("map-view").hidden = view !== "map";
+      document.getElementById("vote-map-view").hidden = view !== "vote-map";
+      document.getElementById("dashboard-intro").hidden = view !== "grid";
+      if (view === "map") {
+        initializeMap();
+        setTimeout(() => {
+          if (electionMap) electionMap.invalidateSize();
+          loadMap();
+        }, 80);
+      } else if (view === "sections") {
+        loadSectionGrid();
+      } else if (view === "vote-map") {
+        initializeVoteMap();
+        setTimeout(() => {
+          if (voteMap) voteMap.invalidateSize();
+          loadVoteMapOptions();
+        }, 80);
+      }
+    }
+
+    async function loadSectionFilterOptions(apiKey) {
+      const ufSelect = document.getElementById("sections-uf");
+      const municipalitySelect = document.getElementById("sections-municipality");
+      const sequence = ++sectionsOptionsRequestSequence;
+      ufSelect.closest(".field").classList.add("is-loading");
+      municipalitySelect.closest(".field").classList.add("is-loading");
+      try {
+        const params = new URLSearchParams();
+        if (ufSelect.value) params.set("uf", ufSelect.value);
+        const response = await fetch(`/api/v1/mapa/secoes/opcoes?${params}`, {
+          headers: { "X-API-Key": apiKey }
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          if (response.status === 401) {
+            sessionStorage.removeItem("mesarios-api-key");
+            showKeyDialog();
+          }
+          throw new Error(detail.detail || `Falha ao carregar filtros das seções (HTTP ${response.status}).`);
+        }
+        const options = await response.json();
+        if (sequence !== sectionsOptionsRequestSequence) return;
+        const selectedUf = ufSelect.value;
+        const selectedMunicipality = municipalitySelect.value;
+        ufSelect.replaceChildren(new Option("Todas as UFs", ""));
+        for (const value of options.ufs || []) ufSelect.add(new Option(value, value));
+        if ((options.ufs || []).includes(selectedUf)) ufSelect.value = selectedUf;
+        ufSelect.disabled = !(options.ufs || []).length;
+
+        municipalitySelect.replaceChildren(
+          new Option(ufSelect.value ? "Todos os municípios" : "Selecione uma UF", "")
+        );
+        for (const value of options.municipalities || []) {
+          municipalitySelect.add(new Option(value, value));
+        }
+        municipalitySelect.disabled = !ufSelect.value || !(options.municipalities || []).length;
+        if ((options.municipalities || []).includes(selectedMunicipality)) {
+          municipalitySelect.value = selectedMunicipality;
+        }
+        if (ufSelect.value && !(options.municipalities || []).length) {
+          municipalitySelect.options[0].textContent = "Sem municípios disponíveis";
+        }
+      } catch (error) {
+        if (sequence !== sectionsOptionsRequestSequence) return;
+        ufSelect.replaceChildren(new Option("Não foi possível carregar UFs", ""));
+        ufSelect.disabled = true;
+        municipalitySelect.replaceChildren(new Option("Selecione uma UF", ""));
+        municipalitySelect.disabled = true;
+        const target = document.getElementById("sections-error");
+        target.textContent = error.message || "Não foi possível carregar os filtros de seção.";
+        target.hidden = false;
+      } finally {
+        if (sequence === sectionsOptionsRequestSequence) {
+          ufSelect.closest(".field").classList.remove("is-loading");
+          municipalitySelect.closest(".field").classList.remove("is-loading");
+        }
+      }
+    }
+
+    function renderSectionRows(items) {
+      const body = document.getElementById("sections-results");
+      if (!items.length) {
+        body.innerHTML = '<tr><td class="empty-state" colspan="9">Nenhuma seção encontrada para os filtros informados.</td></tr>';
+        return;
+      }
+      body.innerHTML = items.map((item) => `<tr>
+        <td class="cell-main">${escapeHtml(item.section_number)}</td>
+        <td>${escapeHtml(item.uf)}</td>
+        <td>${escapeHtml(item.municipality)}</td>
+        <td>${escapeHtml(item.electoral_zone)}</td>
+        <td class="cell-main">${escapeHtml(item.polling_place_name)}</td>
+        <td>${escapeHtml(item.address)}</td>
+        <td>${valueOrDash(item.neighborhood)}</td>
+        <td>${valueOrDash(item.postal_code)}</td>
+        <td>${valueOrDash(item.situation)}</td>
+      </tr>`).join("");
+    }
+
+    async function loadSectionGrid() {
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      if (!apiKey) {
+        showKeyDialog();
+        return;
+      }
+      const sequence = ++sectionsRequestSequence;
+      const button = document.querySelector("#sections-filters button[type='submit']");
+      const error = document.getElementById("sections-error");
+      setButtonLoading(button, true, "Filtrando seções…");
+      error.hidden = true;
+      document.getElementById("sections-results").innerHTML =
+        '<tr><td class="loading-state" colspan="9">Carregando seções…</td></tr>';
+      const params = new URLSearchParams({
+        offset: String(sectionsOffset),
+        limit: String(pageSize)
+      });
+      for (const [name, value] of new FormData(document.getElementById("sections-filters")).entries()) {
+        if (String(value).trim()) params.set(name, String(value).trim());
+      }
+      try {
+        const response = await fetch(`/api/v1/mapa/secoes?${params}`, {
+          headers: { "X-API-Key": apiKey }
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          if (response.status === 401) {
+            sessionStorage.removeItem("mesarios-api-key");
+            showKeyDialog();
+          }
+          throw new Error(detail.detail || `Falha ao consultar as seções (HTTP ${response.status}).`);
+        }
+        const data = await response.json();
+        if (sequence !== sectionsRequestSequence) return;
+        totalSectionsRows = data.total;
+        const first = totalSectionsRows ? sectionsOffset + 1 : 0;
+        const last = Math.min(sectionsOffset + data.items.length, totalSectionsRows);
+        document.getElementById("sections-caption").textContent =
+          `${numberFormat.format(totalSectionsRows)} seções encontradas · dados oficiais do TSE`;
+        document.getElementById("sections-page-caption").textContent =
+          `Exibindo ${numberFormat.format(first)}–${numberFormat.format(last)} de ${numberFormat.format(totalSectionsRows)} seções`;
+        document.getElementById("sections-page-number").textContent =
+          `${Math.floor(sectionsOffset / pageSize) + 1} / ${Math.max(1, Math.ceil(totalSectionsRows / pageSize))}`;
+        document.getElementById("sections-previous").disabled = sectionsOffset === 0;
+        document.getElementById("sections-next").disabled = sectionsOffset + pageSize >= totalSectionsRows;
+        renderSectionRows(data.items);
+      } catch (error) {
+        if (sequence !== sectionsRequestSequence) return;
+        document.getElementById("sections-error").textContent =
+          error.message || "Não foi possível carregar as seções.";
+        document.getElementById("sections-error").hidden = false;
+        document.getElementById("sections-results").innerHTML =
+          '<tr><td class="empty-state" colspan="9">Não foi possível exibir as seções.</td></tr>';
+      } finally {
+        if (sequence === sectionsRequestSequence) setButtonLoading(button, false);
+      }
+    }
+
+    async function startSectionVoteImport() {
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      if (!apiKey) {
+        showKeyDialog();
+        return;
+      }
+      if (resultsImportPolling) return;
+
+      const yearInput = document.getElementById("results-election-year");
+      const year = Number(yearInput.value);
+      const status = document.getElementById("results-import-status");
+      const button = document.getElementById("results-import");
+      if (!Number.isInteger(year) || year < 1994 || year > 2100) {
+        status.textContent = "Informe um ano entre 1994 e 2100.";
+        yearInput.focus();
+        return;
+      }
+
+      resultsImportPolling = true;
+      let alreadyImported = false;
+      const params = new URLSearchParams({ election_year: String(year) });
+      const uf = document.getElementById("results-uf").value;
+      if (uf) params.set("uf", uf);
+      setButtonLoading(button, true, "Iniciando importação…");
+      status.textContent = `Solicitando resultados oficiais de ${year}${uf ? ` para ${uf}` : " para todas as UFs"}…`;
+      try {
+        const response = await fetch(`/api/v1/resultados/importacoes/tse?${params}`, {
+          method: "POST",
+          headers: { "X-API-Key": apiKey }
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          alreadyImported = response.status === 409
+            && String(detail.detail || "").includes("já foram importados com sucesso");
+          if (response.status === 401) {
+            sessionStorage.removeItem("mesarios-api-key");
+            showKeyDialog();
+          }
+          throw new Error(detail.detail || `Falha ao iniciar a importação (HTTP ${response.status}).`);
+        }
+        const run = await response.json();
+        while (true) {
+          status.textContent =
+            `Importando resultados de ${year}${uf ? ` (${uf})` : " — Brasil todo"}: ${numberFormat.format(run.records_processed)} linhas processadas. Os arquivos podem levar vários minutos para baixar e processar.`;
+          await new Promise((resolve) => setTimeout(resolve, 3000));
+          const statusResponse = await fetch(`/api/v1/resultados/importacoes/${run.id}`, {
+            headers: { "X-API-Key": apiKey }
+          });
+          if (!statusResponse.ok) {
+            const detail = await statusResponse.json().catch(() => ({}));
+            if (statusResponse.status === 401) {
+              sessionStorage.removeItem("mesarios-api-key");
+              showKeyDialog();
+            }
+            throw new Error(detail.detail || `Falha ao consultar a importação (HTTP ${statusResponse.status}).`);
+          }
+          const currentRun = await statusResponse.json();
+          run.records_processed = currentRun.records_processed;
+          if (currentRun.status === "SUCCEEDED") {
+            status.textContent =
+              `Importação concluída: ${numberFormat.format(currentRun.records_processed)} registros oficiais de ${year}${uf ? ` para ${uf}` : " para todas as UFs"}.`;
+            showToast("Resultados de votação por seção importados com sucesso.");
+            break;
+          }
+          if (currentRun.status === "FAILED") {
+            throw new Error(currentRun.error_message || "A importação dos resultados falhou.");
+          }
+        }
+      } catch (error) {
+        status.textContent = error.message || "Não foi possível importar os resultados do TSE.";
+      } finally {
+        resultsImportPolling = false;
+        setButtonLoading(button, false);
+        if (alreadyImported) {
+          button.disabled = true;
+          button.textContent = "Importação já concluída";
+        }
+      }
+    }
+
+    function initializeMap() {
+      if (electionMap || !window.L) return;
+      electionMap = L.map("election-map", { preferCanvas: true }).setView([-14.2, -52.7], 4);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(electionMap);
+      mapLayer = L.layerGroup().addTo(electionMap);
+      electionMap.on("moveend", scheduleMapLoad);
+    }
+
+    function scheduleMapLoad() {
+      clearTimeout(mapRequestTimer);
+      mapRequestTimer = setTimeout(loadMap, 220);
+    }
+
+    function coordinateText(value) {
+      return Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 4, maximumFractionDigits: 6 });
+    }
+
+    function markerPopup(point, clustered) {
+      if (clustered) {
+        return `<div class="map-dot-popup"><strong>${numberFormat.format(point.local_count)} locais próximos</strong><span class="popup-muted">${numberFormat.format(point.section_count)} seções eleitorais</span><br><span class="popup-muted">Aumente o zoom para ver cada local.</span><br><button class="detail-button zoom-cluster" type="button">Ampliar esta região</button></div>`;
+      }
+      const locationKey = encodeURIComponent(point.location_key);
+      return `<div class="map-dot-popup"><strong>${escapeHtml(point.name)}</strong><span class="popup-muted">${escapeHtml(point.municipality)} · ${escapeHtml(point.uf)} · Zona ${escapeHtml(point.electoral_zone)}</span><div>${escapeHtml(point.address)}</div><span class="popup-muted">${escapeHtml(point.neighborhood || "Bairro não informado")} · CEP ${escapeHtml(point.postal_code || "não informado")}</span><div class="section-list" data-location-key="${locationKey}">Carregando endereços das seções…</div></div>`;
+    }
+
+    async function loadSectionAddresses(popup, locationKey) {
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      const list = popup.getElement()?.querySelector(".section-list");
+      if (!apiKey || !list) return;
+      try {
+        const response = await fetch(`/api/v1/mapa/locais/${locationKey}/secoes`, {
+          headers: { "X-API-Key": apiKey }
+        });
+        if (!response.ok) throw new Error(`Falha ao carregar seções (HTTP ${response.status}).`);
+        const sections = await response.json();
+        list.innerHTML = sections.map((section) => `<div class="section-item"><span class="section-number">Seção ${escapeHtml(section.section_number)}</span><br>${escapeHtml(section.address)}${section.neighborhood ? ` · ${escapeHtml(section.neighborhood)}` : ""}<br><span class="popup-muted">${escapeHtml(section.municipality)} · ${escapeHtml(section.uf)} · Zona ${escapeHtml(section.electoral_zone)} · CEP ${escapeHtml(section.postal_code || "não informado")}</span></div>`).join("") || "Nenhuma seção cadastrada para este local.";
+      } catch (error) {
+        list.textContent = error.message || "Não foi possível carregar os endereços.";
+      }
+    }
+
+    function renderMapPoints(data) {
+      mapLayer.clearLayers();
+      for (const point of data.points) {
+        const clustered = data.clustered;
+        const radius = clustered
+          ? Math.min(20, 6 + Math.log2(Math.max(point.local_count, 1)) * 2)
+          : 6;
+        const marker = L.circleMarker([point.latitude, point.longitude], {
+          radius,
+          color: clustered ? "#fff" : "#ffffff",
+          weight: 1.5,
+          fillColor: clustered ? "#167968" : "#c28c42",
+          fillOpacity: .88
+        }).addTo(mapLayer);
+        marker.bindPopup(markerPopup(point, clustered), { maxWidth: 340 });
+        if (!clustered) {
+          marker.on("popupopen", (event) => {
+            loadSectionAddresses(event.popup, encodeURIComponent(point.location_key));
+          });
+        } else {
+          marker.on("popupopen", (event) => {
+            const button = event.popup.getElement()?.querySelector(".zoom-cluster");
+            button?.addEventListener("click", () => {
+              electionMap.setView([point.latitude, point.longitude], Math.min(electionMap.getZoom() + 2, 10));
+            });
+          });
+        }
+      }
+    }
+
+    async function loadMap() {
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      const summary = document.getElementById("map-summary");
+      if (!apiKey) {
+        summary.textContent = "Informe a chave de acesso para consultar o mapa.";
+        return;
+      }
+      initializeMap();
+      if (!electionMap || !mapLayer) {
+        summary.textContent = "Não foi possível carregar o mapa. Verifique a conexão com a biblioteca de mapas.";
+        return;
+      }
+      const bounds = electionMap.getBounds();
+      const params = new URLSearchParams({
+        zoom: String(electionMap.getZoom()),
+        south: String(bounds.getSouth()),
+        west: String(bounds.getWest()),
+        north: String(bounds.getNorth()),
+        east: String(bounds.getEast())
+      });
+      for (const [name, value] of new FormData(document.getElementById("map-filters")).entries()) {
+        if (String(value).trim()) params.set(name, String(value).trim());
+      }
+      const requestSequence = ++mapRequestSequence;
+      mapRequestController?.abort();
+      mapRequestController = new AbortController();
+      const filterButton = document.querySelector("#map-filters button[type='submit']");
+      setButtonLoading(filterButton, true, "Carregando mapa…");
+      summary.textContent = "Carregando locais e seções no mapa…";
+      try {
+        const response = await fetch(`/api/v1/mapa/locais?${params}`, {
+          headers: { "X-API-Key": apiKey },
+          signal: mapRequestController.signal
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          if (response.status === 401) {
+            sessionStorage.removeItem("mesarios-api-key");
+            showKeyDialog();
+          }
+          throw new Error(detail.detail || `Falha ao carregar o mapa (HTTP ${response.status}).`);
+        }
+        const data = await response.json();
+        if (requestSequence !== mapRequestSequence) return;
+        renderMapPoints(data);
+        if (!data.total_locations) {
+          summary.textContent = "Nenhum endereço importado. Use “Importar dados oficiais” para carregar os dados do TSE.";
+        } else if (!data.points.length) {
+          summary.textContent = `${numberFormat.format(data.total_locations)} locais no filtro, mas nenhum ponto com coordenadas nesta área do mapa.`;
+        } else {
+          summary.textContent = `${numberFormat.format(data.total_locations)} locais · ${numberFormat.format(data.total_sections)} seções${data.clustered ? " · pontos agrupados; aproxime o zoom para detalhar" : ""}${data.truncated ? " · muitos pontos visíveis; aproxime o zoom" : ""}`;
+        }
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        if (requestSequence !== mapRequestSequence) return;
+        summary.textContent = error.message || "Não foi possível carregar os dados do mapa.";
+      } finally {
+        if (requestSequence === mapRequestSequence) {
+          setButtonLoading(filterButton, false);
+        }
+      }
+    }
+
+    function initializeVoteMap() {
+      if (voteMap || !window.L) return;
+      voteMap = L.map("vote-map", { preferCanvas: true }).setView([-14.2, -52.7], 4);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(voteMap);
+      voteMapLayer = L.layerGroup().addTo(voteMap);
+      voteMap.on("moveend", scheduleVoteMapLoad);
+    }
+
+    function scheduleVoteMapLoad() {
+      clearTimeout(voteMapRequestTimer);
+      voteMapRequestTimer = setTimeout(loadVoteMap, 220);
+    }
+
+    async function loadVoteMapOptions() {
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      const status = document.getElementById("vote-map-status");
+      if (!apiKey) {
+        status.textContent = "Informe a chave de acesso para consultar os resultados.";
+        return;
+      }
+
+      const sequence = ++voteMapOptionsRequestSequence;
+      const yearSelect = document.getElementById("vote-map-year");
+      const turnSelect = document.getElementById("vote-map-turn");
+      const officeSelect = document.getElementById("vote-map-office");
+      const ufSelect = document.getElementById("vote-map-uf");
+      const municipalitySelect = document.getElementById("vote-map-municipality");
+      const previous = {
+        year: yearSelect.value,
+        turn: turnSelect.value,
+        office: officeSelect.value,
+        uf: ufSelect.value,
+        municipality: municipalitySelect.value
+      };
+      const params = new URLSearchParams();
+      if (previous.year) params.set("election_year", previous.year);
+      if (previous.turn) params.set("turn", previous.turn);
+      if (previous.uf) params.set("uf", previous.uf);
+      if (previous.municipality) params.set("municipality", previous.municipality);
+      status.textContent = "Carregando anos, cargos e localidades disponíveis…";
+      try {
+        const response = await fetch(`/api/v1/resultados/mapa/opcoes?${params}`, {
+          headers: { "X-API-Key": apiKey }
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          if (response.status === 401) {
+            sessionStorage.removeItem("mesarios-api-key");
+            showKeyDialog();
+          }
+          throw new Error(detail.detail || `Falha ao carregar os filtros (HTTP ${response.status}).`);
+        }
+        const options = await response.json();
+        if (sequence !== voteMapOptionsRequestSequence) return;
+
+        yearSelect.replaceChildren(new Option("Selecione o ano", ""));
+        for (const year of options.years || []) yearSelect.add(new Option(String(year), String(year)));
+        yearSelect.disabled = !(options.years || []).length;
+        if ((options.years || []).length) {
+          const selectedYear = (options.years || []).map(String).includes(previous.year)
+            ? previous.year
+            : (options.years || []).map(String).includes("2026")
+              ? "2026"
+              : String(options.years[0]);
+          yearSelect.value = selectedYear;
+        }
+
+        turnSelect.replaceChildren(new Option("Selecione o turno", ""));
+        for (const turn of options.turns || []) {
+          turnSelect.add(new Option(`${turn}º turno`, String(turn)));
+        }
+        turnSelect.disabled = !(options.turns || []).length;
+        if ((options.turns || []).length) {
+          const availableTurns = (options.turns || []).map(String);
+          turnSelect.value = availableTurns.includes(previous.turn) ? previous.turn : availableTurns[0];
+        }
+        if (yearSelect.value !== previous.year || turnSelect.value !== previous.turn) {
+          await loadVoteMapOptions();
+          return;
+        }
+
+        ufSelect.replaceChildren(new Option("Todas as UFs", ""));
+        for (const uf of options.ufs || []) ufSelect.add(new Option(uf, uf));
+        ufSelect.disabled = !(options.ufs || []).length;
+        if ((options.ufs || []).includes(previous.uf)) ufSelect.value = previous.uf;
+
+        municipalitySelect.replaceChildren(new Option(
+          ufSelect.value ? "Todos os municípios" : "Selecione uma UF",
+          ""
+        ));
+        for (const municipality of options.municipalities || []) {
+          municipalitySelect.add(new Option(municipality, municipality));
+        }
+        municipalitySelect.disabled = !ufSelect.value || !(options.municipalities || []).length;
+        if ((options.municipalities || []).includes(previous.municipality)) {
+          municipalitySelect.value = previous.municipality;
+        }
+
+        officeSelect.replaceChildren(new Option("Selecione o cargo", ""));
+        for (const office of options.offices || []) {
+          officeSelect.add(new Option(office.name, office.code));
+        }
+        officeSelect.disabled = !(options.offices || []).length;
+        if ((options.offices || []).some((office) => office.code === previous.office)) {
+          officeSelect.value = previous.office;
+        } else if ((options.offices || []).length) {
+          officeSelect.value = options.offices[0].code;
+        }
+
+        if (!options.years?.length) {
+          status.textContent = "Nenhum resultado eleitoral importado. Importe os votos na aba Grade de seções para habilitar o mapa.";
+          voteMapLayer?.clearLayers();
+          document.getElementById("vote-map-total-votes").textContent = "—";
+          document.getElementById("vote-map-total-sections").textContent = "—";
+          document.getElementById("vote-map-total-locations").textContent = "—";
+          return;
+        }
+        await loadVoteCandidates();
+        if (activeView === "vote-map") loadVoteMap();
+      } catch (error) {
+        if (sequence !== voteMapOptionsRequestSequence) return;
+        status.textContent = error.message || "Não foi possível carregar as opções de resultados.";
+      }
+    }
+
+    async function loadVoteCandidates() {
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      const year = document.getElementById("vote-map-year").value;
+      const turn = document.getElementById("vote-map-turn").value;
+      const office = document.getElementById("vote-map-office").value;
+      const voteType = document.getElementById("vote-map-type").value;
+      const candidateSelect = document.getElementById("vote-map-candidate");
+      const sequence = ++voteCandidatesRequestSequence;
+      voteMapCandidates = [];
+      candidateSelect.replaceChildren(new Option("Todos os candidatos", ""));
+      renderVoteMapCandidatePhoto();
+      if (voteType !== "CANDIDATO" || !apiKey || !year || !turn || !office) {
+        candidateSelect.disabled = true;
+        return;
+      }
+
+      const params = new URLSearchParams({
+        election_year: year,
+        turn,
+        office_code: office
+      });
+      for (const name of ["uf", "municipality"]) {
+        const value = document.getElementById(`vote-map-${name}`).value;
+        if (value) params.set(name, value);
+      }
+      candidateSelect.disabled = true;
+      candidateSelect.options[0].textContent = "Carregando candidatos…";
+      try {
+        const response = await fetch(`/api/v1/resultados/mapa/candidatos?${params}`, {
+          headers: { "X-API-Key": apiKey }
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          if (response.status === 401) {
+            sessionStorage.removeItem("mesarios-api-key");
+            showKeyDialog();
+          }
+          throw new Error(detail.detail || `Falha ao carregar candidatos (HTTP ${response.status}).`);
+        }
+        const candidates = await response.json();
+        if (sequence !== voteCandidatesRequestSequence) return;
+        voteMapCandidates = candidates;
+        candidateSelect.replaceChildren(new Option("Todos os candidatos", ""));
+        for (const candidate of candidates) {
+          const description = [
+            candidate.name,
+            candidate.party,
+            candidate.code
+          ].filter(Boolean).join(" · ");
+          candidateSelect.add(new Option(description, candidate.code));
+        }
+        candidateSelect.disabled = candidates.length === 0;
+        if (candidates.length === 0) {
+          candidateSelect.options[0].textContent = "Sem candidatos neste filtro";
+        }
+      } catch (error) {
+        if (sequence !== voteCandidatesRequestSequence) return;
+        candidateSelect.replaceChildren(new Option("Falha ao carregar candidatos", ""));
+        candidateSelect.disabled = true;
+        document.getElementById("vote-map-status").textContent =
+          error.message || "Não foi possível carregar os candidatos.";
+      }
+    }
+
+    function renderVoteMapCandidatePhoto() {
+      const preview = document.getElementById("vote-map-candidate-preview");
+      const image = document.getElementById("vote-map-candidate-photo");
+      const name = document.getElementById("vote-map-candidate-name");
+      const selectedCode = document.getElementById("vote-map-candidate").value;
+      const candidate = voteMapCandidates.find((item) => item.code === selectedCode);
+      if (!candidate?.photo_url) {
+        preview.hidden = true;
+        image.removeAttribute("src");
+        return;
+      }
+
+      name.textContent = candidate.name;
+      image.alt = `Foto de ${candidate.name}`;
+      image.onerror = () => {
+        if (image.src === candidate.photo_url) {
+          preview.hidden = true;
+          image.removeAttribute("src");
+        }
+      };
+      preview.hidden = false;
+      image.src = candidate.photo_url;
+    }
+
+    function renderVoteMapPoints(data) {
+      voteMapLayer.clearLayers();
+      for (const point of data.points) {
+        const clustered = data.clustered;
+        const radius = clustered
+          ? Math.min(20, 6 + Math.log2(Math.max(point.location_count, 1)) * 2)
+          : Math.min(16, 5 + Math.log10(Math.max(point.votes, 1)) * 2);
+        const marker = L.circleMarker([point.latitude, point.longitude], {
+          radius,
+          color: "#ffffff",
+          weight: 1.5,
+          fillColor: clustered ? "#167968" : "#c28c42",
+          fillOpacity: .88
+        }).addTo(voteMapLayer);
+        if (clustered) {
+          marker.bindPopup(
+            `<div class="vote-dot-popup"><strong>${numberFormat.format(point.location_count)} locais próximos</strong><span class="popup-muted">${numberFormat.format(point.section_count)} seções · ${numberFormat.format(point.votes)} votos</span><br><span class="popup-muted">Aproxime o zoom para detalhar locais e seções.</span></div>`,
+            { maxWidth: 300 }
+          );
+          marker.on("click", () => {
+            voteMap.setView(
+              [point.latitude, point.longitude],
+              Math.min(voteMap.getZoom() + 2, 10)
+            );
+          });
+        } else {
+          marker.bindPopup(
+            `<div class="vote-dot-popup"><strong>${escapeHtml(point.name)}</strong><span class="popup-muted">${escapeHtml(point.municipality)} · ${escapeHtml(point.uf)} · Zona ${escapeHtml(point.electoral_zone)}</span><div>${numberFormat.format(point.votes)} votos em ${numberFormat.format(point.section_count)} seções</div><span class="popup-muted">Clique no ponto para abrir a votação por seção.</span></div>`,
+            { maxWidth: 320 }
+          );
+          marker.on("click", () => loadVoteLocationDetails(point));
+        }
+      }
+    }
+
+    async function loadVoteMap() {
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      const status = document.getElementById("vote-map-status");
+      const year = document.getElementById("vote-map-year").value;
+      const turn = document.getElementById("vote-map-turn").value;
+      const office = document.getElementById("vote-map-office").value;
+      if (!apiKey) {
+        status.textContent = "Informe a chave de acesso para consultar os resultados.";
+        return;
+      }
+      if (!year || !turn || !office) {
+        voteMapLayer?.clearLayers();
+        status.textContent = "Selecione o ano, o turno e o cargo eletivo para exibir os votos.";
+        return;
+      }
+      initializeVoteMap();
+      if (!voteMap || !voteMapLayer) {
+        status.textContent = "Não foi possível carregar o mapa. Verifique a conexão com a biblioteca de mapas.";
+        return;
+      }
+      const bounds = voteMap.getBounds();
+      const params = new URLSearchParams({
+        zoom: String(voteMap.getZoom()),
+        south: String(bounds.getSouth()),
+        west: String(bounds.getWest()),
+        north: String(bounds.getNorth()),
+        east: String(bounds.getEast())
+      });
+      for (const [name, value] of new FormData(document.getElementById("vote-map-filters")).entries()) {
+        if (String(value).trim()) params.set(name, String(value).trim());
+      }
+      const sequence = ++voteMapRequestSequence;
+      voteMapRequestController?.abort();
+      voteMapRequestController = new AbortController();
+      status.textContent = "Consultando votos por local e seção…";
+      document.getElementById("vote-map-details").hidden = true;
+      try {
+        const response = await fetch(`/api/v1/resultados/mapa?${params}`, {
+          headers: { "X-API-Key": apiKey },
+          signal: voteMapRequestController.signal
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          if (response.status === 401) {
+            sessionStorage.removeItem("mesarios-api-key");
+            showKeyDialog();
+          }
+          throw new Error(detail.detail || `Falha ao carregar os votos (HTTP ${response.status}).`);
+        }
+        const data = await response.json();
+        if (sequence !== voteMapRequestSequence) return;
+        renderVoteMapPoints(data);
+        document.getElementById("vote-map-total-votes").textContent =
+          numberFormat.format(data.total_votes);
+        document.getElementById("vote-map-total-sections").textContent =
+          numberFormat.format(data.total_sections);
+        document.getElementById("vote-map-total-locations").textContent =
+          numberFormat.format(data.total_locations);
+        if (!data.total_votes) {
+          status.textContent = "Nenhum voto encontrado para os filtros selecionados.";
+        } else if (!data.points.length) {
+          status.textContent = `${numberFormat.format(data.total_votes)} votos encontrados, mas sem locais com coordenadas nesta área do mapa.`;
+        } else {
+          status.textContent =
+            `${numberFormat.format(data.total_votes)} votos · ${numberFormat.format(data.total_sections)} seções · ${numberFormat.format(data.total_locations)} locais${data.clustered ? " · pontos agrupados; aproxime o zoom para detalhar" : ""}${data.truncated ? " · muitos locais visíveis; aproxime o zoom para ver todos" : ""}`;
+        }
+      } catch (error) {
+        if (error.name === "AbortError" || sequence !== voteMapRequestSequence) return;
+        status.textContent = error.message || "Não foi possível carregar os votos no mapa.";
+      }
+    }
+
+    async function loadVoteLocationDetails(point) {
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      if (!apiKey) return;
+      const details = document.getElementById("vote-map-details");
+      const tbody = document.getElementById("vote-map-details-results");
+      const sequence = ++voteDetailsRequestSequence;
+      const params = new URLSearchParams();
+      const filterControls = {
+        election_year: "year",
+        turn: "turn",
+        office_code: "office",
+        vote_type: "type",
+        vote_code: "candidate"
+      };
+      for (const [name, control] of Object.entries(filterControls)) {
+        const value = document.getElementById(`vote-map-${control}`).value;
+        if (value) params.set(name, value);
+      }
+      details.hidden = false;
+      document.getElementById("vote-map-details-title").textContent =
+        `${point.name} · Zona ${point.electoral_zone}`;
+      document.getElementById("vote-map-details-caption").textContent =
+        `${point.address} · ${point.municipality} / ${point.uf}`;
+      tbody.innerHTML = '<tr><td class="loading-state" colspan="5">Carregando votos por seção…</td></tr>';
+      details.scrollIntoView({ behavior: "smooth", block: "start" });
+      try {
+        const response = await fetch(
+          `/api/v1/resultados/mapa/locais/${encodeURIComponent(point.location_key)}/secoes?${params}`,
+          { headers: { "X-API-Key": apiKey } }
+        );
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          if (response.status === 401) {
+            sessionStorage.removeItem("mesarios-api-key");
+            showKeyDialog();
+          }
+          throw new Error(detail.detail || `Falha ao carregar votos por seção (HTTP ${response.status}).`);
+        }
+        const data = await response.json();
+        if (sequence !== voteDetailsRequestSequence) return;
+        if (data.truncated) {
+          document.getElementById("vote-map-details-caption").textContent +=
+            " · exibindo os primeiros 2.000 resultados; refine o filtro para ver menos opções";
+        }
+        tbody.innerHTML = data.items.map((item) =>
+          `<tr><td>${escapeHtml(item.section_number)}</td><td>${escapeHtml(item.electoral_zone)}</td><td class="cell-main">${escapeHtml(item.vote_name)}</td><td>${escapeHtml(item.party_abbreviation || "—")}</td><td>${numberFormat.format(item.votes)}</td></tr>`
+        ).join("") || '<tr><td class="empty-state" colspan="5">Nenhum voto cadastrado para este local e filtro.</td></tr>';
+      } catch (error) {
+        if (sequence !== voteDetailsRequestSequence) return;
+        tbody.innerHTML = `<tr><td class="empty-state" colspan="5">${escapeHtml(error.message || "Não foi possível carregar os votos por seção.")}</td></tr>`;
+      }
+    }
+
+    async function startMapImport() {
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      if (!apiKey) {
+        showKeyDialog();
+        return;
+      }
+      if (mapImportPolling) return;
+      mapImportPolling = true;
+      const button = document.getElementById("map-import");
+      const summary = document.getElementById("map-summary");
+      button.disabled = true;
+      button.textContent = "Iniciando importação…";
+      try {
+        const response = await fetch("/api/v1/mapa/importacoes/tse", {
+          method: "POST",
+          headers: { "X-API-Key": apiKey }
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          throw new Error(detail.detail || `Falha ao iniciar a importação (HTTP ${response.status}).`);
+        }
+        const run = await response.json();
+        button.textContent = "Importação em andamento…";
+        while (true) {
+          summary.textContent = `Importando endereços oficiais do TSE… ${numberFormat.format(run.records_processed)} linhas processadas.`;
+          await new Promise((resolve) => setTimeout(resolve, 2200));
+          const statusResponse = await fetch(`/api/v1/mapa/importacoes/${run.id}`, {
+            headers: { "X-API-Key": apiKey }
+          });
+          if (!statusResponse.ok) {
+            const detail = await statusResponse.json().catch(() => ({}));
+            throw new Error(detail.detail || `Falha ao consultar a importação (HTTP ${statusResponse.status}).`);
+          }
+          const status = await statusResponse.json();
+          run.records_processed = status.records_processed;
+          if (status.status === "SUCCEEDED") {
+            showToast(`Importação concluída: ${numberFormat.format(status.records_processed)} linhas do TSE processadas.`);
+            button.textContent = "Atualizar dados oficiais";
+            await loadMap();
+            break;
+          }
+          if (status.status === "FAILED") {
+            throw new Error(status.error_message || "A importação de endereços falhou.");
+          }
+        }
+      } catch (error) {
+        summary.textContent = error.message || "Não foi possível importar os dados do TSE.";
+      } finally {
+        mapImportPolling = false;
+        button.disabled = false;
+        button.textContent = "Atualizar dados oficiais";
+      }
+    }
+
+    function showKeyDialog() {
+      keyInput.value = "";
+      keyModal.hidden = false;
+      keyInput.focus();
+    }
+
+    function valueOrDash(value) {
+      return value === null || value === undefined || value === "" ? "—" : escapeHtml(value);
+    }
+
+    function detailMarkup(item) {
+      const labels = {
+        id: "ID do registro", source_id: "ID da fonte", election_year: "Ano da eleição",
+        turn: "Turno", uf: "UF", municipality_code: "Código do município",
+        municipality: "Município", electoral_zone: "Zona eleitoral", mesario_type: "Tipo de mesário",
+        electoral_activity: "Atividade eleitoral", special_function: "Função especial", gender: "Gênero",
+        marital_status: "Estado civil", age_range: "Faixa etária", education_level: "Escolaridade",
+        race_color: "Raça / cor", quilombola_status: "Status quilombola",
+        libras_interpreter_status: "Intérprete de Libras", gender_identity: "Identidade de gênero",
+        volunteer_status: "Voluntário", attendance_status: "Comparecimento",
+        called_count: "Convocados", imported_at: "Importado em", record_hash: "Hash do registro"
+      };
+      const fields = Object.entries(item).filter(([name]) => name !== "raw_data");
+      return `<div class="detail-grid">${fields.map(([name, value]) =>
+        `<div class="detail-item"><div class="detail-label">${escapeHtml(labels[name] || name)}</div><div class="detail-value">${valueOrDash(value)}</div></div>`
+      ).join("")}<div class="detail-raw"><div class="detail-label">Dados originais do TSE (raw_data)</div><pre>${escapeHtml(JSON.stringify(item.raw_data ?? {}, null, 2))}</pre></div></div>`;
+    }
+
+    function renderRows(items) {
+      if (!items.length) {
+        results.innerHTML = '<tr><td class="empty-state" colspan="8">Nenhum registro corresponde aos filtros informados.</td></tr>';
+        return;
+      }
+      results.innerHTML = items.map((item) => {
+        const attendanceTag = item.attendance_status
+          ? `<span class="tag">${escapeHtml(item.attendance_status)}</span>`
+          : '<span class="tag neutral">Sem categoria</span>';
+        const profile = item.mesario_type || item.electoral_activity || item.special_function || "—";
+        const location = item.municipality || item.municipality_code || "Não informado";
+        return `<tr>
+          <td class="cell-main">${escapeHtml(location)}</td>
+          <td>${valueOrDash(item.uf)}</td>
+          <td>${valueOrDash(item.electoral_zone)}</td>
+          <td>${valueOrDash(item.election_year)} <span class="cell-muted">${item.turn ? `· ${escapeHtml(item.turn)}º` : ""}</span></td>
+          <td>${escapeHtml(profile)}</td>
+          <td>${attendanceTag}</td>
+          <td class="cell-main">${item.called_count === null ? "—" : numberFormat.format(item.called_count)}</td>
+          <td><button class="detail-button" type="button" aria-expanded="false">Detalhes</button></td>
+        </tr><tr class="detail-row" hidden><td colspan="8">${detailMarkup(item)}</td></tr>`;
+      }).join("");
+    }
+
+    function renderChart(categories) {
+      const chart = document.getElementById("attendance-chart");
+      if (!categories.length || categories.every((item) => !item.convocados)) {
+        chart.innerHTML = '<div class="chart-empty">Sem contagens de convocados para esta seleção.</div>';
+        return;
+      }
+      const max = Math.max(...categories.map((item) => item.convocados));
+      chart.innerHTML = categories.map((item) => {
+        const width = max ? Math.max(2, (item.convocados / max) * 100) : 0;
+        return `<div class="chart-row"><span class="chart-name" title="${escapeHtml(item.categoria)}">${escapeHtml(item.categoria)}</span><div class="bar-track"><div class="bar" style="width:${width}%"></div></div><span class="chart-value">${numberFormat.format(item.convocados)}</span></div>`;
+      }).join("");
+    }
+
+    async function loadData() {
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      if (!apiKey) {
+        showKeyDialog();
+        return;
+      }
+      const filterButton = document.querySelector("#filters button[type='submit']");
+      setButtonLoading(filterButton, true, "Filtrando…");
+      errorMessage.hidden = true;
+      results.innerHTML = '<tr><td class="loading-state" colspan="8">Carregando registros…</td></tr>';
+      const params = new URLSearchParams({ offset: String(offset), limit: String(pageSize) });
+      for (const [name, value] of new FormData(document.getElementById("filters")).entries()) {
+        if (String(value).trim()) params.set(name, String(value).trim());
+      }
+      try {
+        const response = await fetch(`/api/v1/mesarios/visualizacao?${params}`, {
+          headers: { "X-API-Key": apiKey }
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          if (response.status === 401) {
+            sessionStorage.removeItem("mesarios-api-key");
+            showKeyDialog();
+            throw new Error("Chave de API inválida. Confira a chave e tente novamente.");
+          }
+          throw new Error(detail.detail || `Falha ao consultar os dados (HTTP ${response.status}).`);
+        }
+        const data = await response.json();
+        totalRows = data.total;
+        document.getElementById("metric-rows").textContent = numberFormat.format(data.total);
+        document.getElementById("metric-called").textContent = numberFormat.format(data.total_convocados);
+        document.getElementById("metric-page").textContent = numberFormat.format(data.items.length);
+        document.getElementById("results-caption").textContent = `${numberFormat.format(data.total)} registros encontrados`;
+        const first = totalRows ? offset + 1 : 0;
+        const last = Math.min(offset + data.items.length, totalRows);
+        document.getElementById("page-caption").textContent = `Exibindo ${numberFormat.format(first)}–${numberFormat.format(last)} de ${numberFormat.format(totalRows)} registros`;
+        document.getElementById("page-number").textContent = `${Math.floor(offset / pageSize) + 1} / ${Math.max(1, Math.ceil(totalRows / pageSize))}`;
+        document.getElementById("previous").disabled = offset === 0;
+        document.getElementById("next").disabled = offset + pageSize >= totalRows;
+        renderChart(data.por_comparecimento);
+        renderRows(data.items);
+      } catch (error) {
+        errorMessage.textContent = error.message || "Não foi possível carregar os dados.";
+        errorMessage.hidden = false;
+        results.innerHTML = '<tr><td class="empty-state" colspan="8">Não foi possível exibir os registros.</td></tr>';
+      } finally {
+        setButtonLoading(filterButton, false);
+      }
+    }
+
+    document.getElementById("key-open").addEventListener("click", showKeyDialog);
+    document.getElementById("key-cancel").addEventListener("click", () => { keyModal.hidden = true; });
+    document.getElementById("key-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      const apiKey = keyInput.value;
+      sessionStorage.setItem("mesarios-api-key", apiKey);
+      keyModal.hidden = true;
+      offset = 0;
+      loadFilterOptions(apiKey);
+      loadActiveView();
+    });
+    keyModal.addEventListener("click", (event) => {
+      if (event.target === keyModal) keyModal.hidden = true;
+    });
+    document.getElementById("filters").addEventListener("submit", (event) => {
+      event.preventDefault();
+      offset = 0;
+      loadData();
+    });
+    document.getElementById("uf").addEventListener("change", async () => {
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      document.getElementById("municipality").value = "";
+      if (apiKey) await loadFilterOptions(apiKey);
+    });
+    document.getElementById("clear-filters").addEventListener("click", () => {
+      document.getElementById("filters").reset();
+      offset = 0;
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      if (apiKey) loadFilterOptions(apiKey);
+      loadData();
+    });
+    document.getElementById("previous").addEventListener("click", () => {
+      offset = Math.max(0, offset - pageSize);
+      loadData();
+    });
+    document.getElementById("next").addEventListener("click", () => {
+      if (offset + pageSize < totalRows) {
+        offset += pageSize;
+        loadData();
+      }
+    });
+    results.addEventListener("click", (event) => {
+      const button = event.target.closest(".detail-button");
+      if (!button) return;
+      const detailRow = button.closest("tr").nextElementSibling;
+      detailRow.hidden = !detailRow.hidden;
+      button.setAttribute("aria-expanded", String(!detailRow.hidden));
+      button.textContent = detailRow.hidden ? "Detalhes" : "Fechar";
+    });
+
+    document.getElementById("grid-tab").addEventListener("click", () => setActiveView("grid"));
+    document.getElementById("sections-tab").addEventListener("click", () => setActiveView("sections"));
+    document.getElementById("map-tab").addEventListener("click", () => setActiveView("map"));
+    document.getElementById("vote-map-tab").addEventListener("click", () => setActiveView("vote-map"));
+    document.getElementById("vote-map-year").addEventListener("change", () => {
+      document.getElementById("vote-map-turn").value = "";
+      document.getElementById("vote-map-office").value = "";
+      document.getElementById("vote-map-candidate").value = "";
+      loadVoteMapOptions();
+    });
+    document.getElementById("vote-map-turn").addEventListener("change", () => {
+      document.getElementById("vote-map-office").value = "";
+      document.getElementById("vote-map-candidate").value = "";
+      loadVoteMapOptions();
+    });
+    document.getElementById("vote-map-office").addEventListener("change", async () => {
+      await loadVoteCandidates();
+      loadVoteMap();
+    });
+    document.getElementById("vote-map-type").addEventListener("change", async () => {
+      await loadVoteCandidates();
+      loadVoteMap();
+    });
+    document.getElementById("vote-map-candidate").addEventListener("change", () => {
+      renderVoteMapCandidatePhoto();
+      loadVoteMap();
+    });
+    document.getElementById("vote-map-uf").addEventListener("change", () => {
+      document.getElementById("vote-map-municipality").value = "";
+      loadVoteMapOptions();
+    });
+    document.getElementById("vote-map-municipality").addEventListener("change", loadVoteMapOptions);
+    document.getElementById("vote-map-filters").addEventListener("submit", (event) => {
+      event.preventDefault();
+      loadVoteMap();
+    });
+    document.getElementById("vote-map-clear").addEventListener("click", () => {
+      document.getElementById("vote-map-filters").reset();
+      document.getElementById("vote-map-details").hidden = true;
+      loadVoteMapOptions();
+    });
+    document.getElementById("sections-filters").addEventListener("submit", (event) => {
+      event.preventDefault();
+      sectionsOffset = 0;
+      loadSectionGrid();
+    });
+    document.getElementById("sections-uf").addEventListener("change", async () => {
+      document.getElementById("sections-municipality").value = "";
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      if (apiKey) await loadSectionFilterOptions(apiKey);
+    });
+    document.getElementById("sections-clear").addEventListener("click", () => {
+      document.getElementById("sections-filters").reset();
+      sectionsOffset = 0;
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      if (apiKey) loadSectionFilterOptions(apiKey);
+      loadSectionGrid();
+    });
+    document.getElementById("sections-previous").addEventListener("click", () => {
+      sectionsOffset = Math.max(0, sectionsOffset - pageSize);
+      loadSectionGrid();
+    });
+    document.getElementById("sections-next").addEventListener("click", () => {
+      if (sectionsOffset + pageSize < totalSectionsRows) {
+        sectionsOffset += pageSize;
+        loadSectionGrid();
+      }
+    });
+    document.getElementById("results-import").addEventListener("click", startSectionVoteImport);
+    document.getElementById("map-filters").addEventListener("submit", (event) => {
+      event.preventDefault();
+      loadMap();
+    });
+    document.getElementById("map-clear").addEventListener("click", () => {
+      document.getElementById("map-filters").reset();
+      loadMap();
+    });
+    document.getElementById("map-import").addEventListener("click", startMapImport);
+
+    if (sessionStorage.getItem("mesarios-api-key")) {
+      const apiKey = sessionStorage.getItem("mesarios-api-key");
+      loadFilterOptions(apiKey);
+      loadSectionFilterOptions(apiKey);
+      loadData();
+    }
+    else showKeyDialog();
+  </script>
+</body>
+</html>

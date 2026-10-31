@@ -1,0 +1,19 @@
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    environment:
+      MYSQL_HOST: ${MYSQL_HOST:?Defina MYSQL_HOST no arquivo .env}
+      MYSQL_PORT: ${MYSQL_PORT:-3306}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:?Defina MYSQL_DATABASE no arquivo .env}
+      MYSQL_USER: ${MYSQL_USER:?Defina MYSQL_USER no arquivo .env}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Defina MYSQL_PASSWORD no arquivo .env}
+      API_KEY: ${API_KEY:?Defina API_KEY no arquivo .env}
+      TSE_CKAN_URL: ${TSE_CKAN_URL:-https://dadosabertos.tse.jus.br/api/3/action/package_show}
+      TSE_DATASET_ID: ${TSE_DATASET_ID:-mesarias-mesarios-e-funcoes-especiais-2026}
+      TSE_LOCATIONS_DATASET_ID: ${TSE_LOCATIONS_DATASET_ID:-eleitorado-2026}
+      ELECTION_YEAR: ${ELECTION_YEAR:-2026}
+      CANDIDATE_PHOTOS_BASE_URL: ${CANDIDATE_PHOTOS_BASE_URL:-https://josedarci.com/eleicoes2026/fotos-candidatos}
+    ports:
+      - "8000:8000"
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
