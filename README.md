@@ -39,6 +39,24 @@ As capturas abaixo ilustram as abas do painel. Os números, registros e pontos e
 - Docker Compose para usar o assistente ou iniciar um MySQL local em container. Se optar por banco remoto, ele deve estar acessível pela máquina da aplicação; informe host, porta, banco, usuário e senha e conceda permissões para criar e alterar tabelas.
 - Acesso à internet para consultar os arquivos públicos do TSE, carregar o mapa e acessar as fotos hospedadas.
 
+## Gerar a chave (token) de acesso
+
+A chave de acesso do painel é configurada como `API_KEY`. Na instalação assistida, ela é gerada automaticamente e gravada no arquivo `.env`. Após a instalação, consulte esse arquivo e informe o valor da `API_KEY` quando o painel solicitar a chave.
+
+Se estiver configurando o `.env` manualmente, gere uma chave aleatória forte com Python:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+Copie o valor gerado para `API_KEY` no `.env`, substituindo o exemplo:
+
+```dotenv
+API_KEY=cole-aqui-o-valor-gerado
+```
+
+Não reutilize o texto de exemplo nem compartilhe a chave: ela permite acessar a API e deve ser mantida em segredo, como uma senha.
+
 ## Instalação assistida
 
 O assistente pergunta qual configuração deseja usar:
