@@ -13,6 +13,26 @@ Aplicação web em FastAPI para importar e explorar conjuntos públicos do Tribu
 
 Os dados públicos de mesários são agregados por zona e características: não identificam pessoas nem informam comparecimento individual. A aplicação não acessa o Sistema ELO.
 
+## Capturas de tela
+
+As capturas abaixo ilustram as abas do painel. Os números, registros e pontos exibidos são fictícios e servem apenas para demonstrar a interface; não representam resultados oficiais.
+
+### Visão em grade
+
+![Painel de mesários em visão de grade](docs/screenshots/visao-em-grade.png)
+
+### Grade de seções
+
+![Locais e seções eleitorais em tabela](docs/screenshots/grade-de-secoes.png)
+
+### Visão em mapa
+
+![Mapa de locais de votação](docs/screenshots/visao-em-mapa.png)
+
+### Mapa de votos
+
+![Mapa de votos por candidato e seção](docs/screenshots/mapa-de-votos.png)
+
 ## Requisitos
 
 - **Docker Desktop** com Docker Compose (Windows ou macOS), ou Docker Engine com o plugin Compose (Linux); ou, para desenvolvimento sem Docker, **Python 3.12**.
