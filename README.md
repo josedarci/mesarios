@@ -1,6 +1,6 @@
 # Painel de dados eleitorais
 
-Aplicação web em FastAPI para importar e explorar conjuntos públicos do Tribunal Superior Eleitoral (TSE). Inclui uma API protegida por chave e um dashboard servido pela própria aplicação. Os dados importados ficam em um banco MySQL; o Docker Compose deste projeto **não instala nem inicia um banco de dados**.
+Aplicação web em FastAPI para importar e explorar conjuntos públicos do Tribunal Superior Eleitoral (TSE). Inclui uma API protegida por chave e um dashboard servido pela própria aplicação. Os dados importados ficam em MySQL, que pode ser criado localmente em container Docker ou usado em um servidor remoto.
 
 ## O que o projeto faz
 
@@ -16,12 +16,33 @@ Os dados públicos de mesários são agregados por zona e características: não
 ## Requisitos
 
 - **Docker Desktop** com Docker Compose (Windows ou macOS), ou Docker Engine com o plugin Compose (Linux); ou, para desenvolvimento sem Docker, **Python 3.12**.
-- Um servidor **MySQL acessível pela máquina que executa a aplicação**. É necessário informar host, porta, banco, usuário e senha. O usuário MySQL precisa de permissões para criar e alterar tabelas, pois o Alembic aplica as migrações na inicialização.
+- Docker Compose para usar o assistente ou iniciar um MySQL local em container. Se optar por banco remoto, ele deve estar acessível pela máquina da aplicação; informe host, porta, banco, usuário e senha e conceda permissões para criar e alterar tabelas.
 - Acesso à internet para consultar os arquivos públicos do TSE, carregar o mapa e acessar as fotos hospedadas.
+
+## Instalação assistida
+
+O assistente pergunta qual configuração deseja usar:
+
+1. **MySQL local em Docker:** cria um container MySQL e um volume persistente para os dados. Não é necessário contratar ou configurar outro servidor de banco.
+2. **MySQL remoto:** conecta a um servidor e banco já existentes. Peça ao administrador da hospedagem o host, a porta, o nome do banco, o usuário e a senha; confirme que o usuário pode criar e alterar tabelas e que a hospedagem libera conexões da máquina de instalação. O assistente não cria banco nem usuário no provedor remoto.
+
+Nas duas opções, o assistente gera uma `API_KEY`, testa a conexão, aplica as migrações e inicia a aplicação.
+
+Instale e inicie o Docker Desktop (Windows ou macOS) ou Docker Engine com Compose (Linux), instale Python 3.10 ou superior e execute:
+
+```bash
+git clone https://github.com/josedarci/mesarios.git
+cd mesarios
+python3 scripts/setup.py
+```
+
+No modo local, as credenciais do MySQL são geradas automaticamente e o banco é criado na primeira inicialização. Os dados ficam em um volume Docker chamado `mysql-data`, persistindo quando os containers são encerrados ou atualizados. No modo remoto, o assistente solicita os dados de conexão e oculta a senha durante a digitação. Em ambos os casos, as configurações ficam no `.env`, com permissões restritas quando o sistema operacional permite. Se `.env` já existir, o assistente para sem sobrescrevê-lo. O arquivo não deve ser compartilhado.
+
+No Windows, use `py -3 scripts/setup.py` no PowerShell. Ao terminar, acesse <http://localhost:8000/> e informe a chave gerada, que pode ser consultada no `.env`. Se a verificação de conexão ou as migrações falharem, confira os dados do banco e os logs indicados pelo assistente. No modo local, use `docker compose -f docker-compose.yml -f docker-compose.local.yml logs -f api`; no remoto, use `docker compose logs -f api`.
 
 ## Executar com Docker
 
-Na máquina em que o projeto será executado:
+Na máquina em que o projeto será executado, clone o repositório:
 
 ```bash
 git clone https://github.com/josedarci/mesarios.git
@@ -35,13 +56,13 @@ No Windows PowerShell, o comando para copiar o arquivo é:
 Copy-Item .env.example .env
 ```
 
-Edite `.env` e configure:
+Crie o `.env` a partir do exemplo e configure:
 
 - `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER` e `MYSQL_PASSWORD` com os dados do MySQL.
 - `API_KEY` com uma chave aleatória forte, que será solicitada pelo painel.
 - `CANDIDATE_PHOTOS_BASE_URL` com o endereço público das fotos dos candidatos. O valor padrão aponta para `https://josedarci.com/eleicoes2026/fotos-candidatos`.
 
-O arquivo `.env` contém credenciais e não deve ser compartilhado nem enviado ao Git. O servidor MySQL precisa aceitar conexões da máquina que executará o Docker; limite o acesso à porta do banco no firewall e conceda somente as permissões necessárias.
+O arquivo `.env` contém credenciais e não deve ser compartilhado nem enviado ao Git. O servidor MySQL precisa aceitar conexões da máquina que executará o Docker; limite o acesso à porta do banco no firewall e conceda somente as permissões necessárias. Para preencher essa configuração e validar a conexão automaticamente, prefira o assistente descrito acima.
 
 Inicie a aplicação:
 
